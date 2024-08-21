@@ -3,5 +3,5 @@ from .models import User
 
 class UserView(ModelView, model=User):
     column_list = [
-        'id', 'email', 'hashed_password', 'is_active'
+        'id', 'email', 'sex', 'avatar', 'short_description', 'origin', 'language','hashed_password'
     ]
