@@ -15,8 +15,7 @@ def create_db() -> None:
     """
 
     # Import models to create database
-    from app.domain.user.models import User, Item
-    from app.domain.token.models import Token
+    from app.domain.user.models import User
 
     # Create the database
     Base.metadata.create_all(bind=engine)

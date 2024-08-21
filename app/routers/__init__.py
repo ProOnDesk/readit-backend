@@ -4,7 +4,6 @@ from fastapi.responses import HTMLResponse
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from ..dependencies import get_db
-from app.domain.token.schemas import Token
 
 router = APIRouter(
     prefix="",

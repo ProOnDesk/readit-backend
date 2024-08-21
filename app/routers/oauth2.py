@@ -1,9 +1,8 @@
 from typing import Annotated
 from fastapi import APIRouter, Depends, Response
-from sqlalchemy.orm import Session
-from ..dependencies import get_db, validate_credentials, oauth2_scheme, Tokens, encode, decode,retrieve_tokens
-from app.config import ACCESS_TOKEN_EXPIRE_TIME, SECRET_KEY, ENCRYPTION_ALGORITHM
-from app.domain.token.schemas import Token
+from ..dependencies import validate_credentials, Tokens, EncodedTokens, retrieve_refresh_token, authenticate, create_token, RefreshToken
+from app.config import ACCESS_TOKEN_EXPIRE_TIME
+import datetime
 
 router = APIRouter(
     prefix="/oauth2",
@@ -11,24 +10,46 @@ router = APIRouter(
     responses={404: {'description': 'Not found'}, 500: {'description': 'Internal Server Error'}},
 )
 
-
-
 @router.post("/token")
 async def login_for_access_token(
     response: Response,
-    token: Token = Depends(validate_credentials)
+    tokens: EncodedTokens = Depends(validate_credentials)
 ):
-    response.set_cookie(key="access_token", value=f'{token.token_type} {encode(token.access_token)}', max_age=ACCESS_TOKEN_EXPIRE_TIME*60, httponly=True)
-    response.set_cookie(key="refresh_token", value=f'{token.token_type} {encode(token.refresh_token)}', max_age=ACCESS_TOKEN_EXPIRE_TIME*60, httponly=True)
+
+    response.set_cookie(key="access_token", value=f'{tokens.access_token}', max_age=ACCESS_TOKEN_EXPIRE_TIME*60, httponly=True)
+    response.set_cookie(key="refresh_token", value=f'{tokens.refresh_token}', max_age=ACCESS_TOKEN_EXPIRE_TIME*60, httponly=True)
 
     return {
         "message": "Authenticated"
     }
 
+@router.post("/refresh-token")
+async def refresh_for_access_token(
+    response: Response,
+    refresh_token: RefreshToken = Depends(retrieve_refresh_token)
+):
+    
+    response.set_cookie(
+        key="access_token", 
+        value=f'{create_token(
+            {
+                "user_id": refresh_token.user_id,
+                "token_type": "Bearer",
+                "type": "access",
+                "expiration_date": (datetime.datetime.now(datetime.UTC) + datetime.timedelta(minutes=ACCESS_TOKEN_EXPIRE_TIME)).isoformat()
+            }
+        )}',
+        max_age=ACCESS_TOKEN_EXPIRE_TIME*60, 
+        httponly=True
+    )
+
+    return {
+        "message": "Refreshed"
+    }
 
 ### Returns body with real tokens
 @router.get("/cookies")
 async def get_cookies(
-    tokens: Annotated[Tokens, Depends(retrieve_tokens)]
+    user_id: Annotated[Tokens, Depends(authenticate)]
 ):
-    return tokens
+    return {"uid": user_id}
