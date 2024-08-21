@@ -1,6 +1,6 @@
-# FastAPI Backend Server Template
+# ReadIt Backend
 
-This project is a template for FastAPI application with Postgresql database.
+This project is a FastAPI application with Postgresql database.
 For ease of development and/or learning, example code has been added to this project.
 
 To start the example application, create `.env` file in `app/` directory (same as `main.py`) and enter one line:
