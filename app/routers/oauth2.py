@@ -50,6 +50,6 @@ async def refresh_for_access_token(
 ### Returns body with real tokens
 @router.get("/cookies")
 async def get_cookies(
-    user_id: Annotated[Tokens, Depends(authenticate)]
+    user_id: Annotated[int, Depends(authenticate)]
 ):
     return {"uid": user_id}

@@ -1,7 +1,12 @@
 from sqladmin import Admin, ModelView
-from .models import User
+from .models import User, Follower
 
 class UserView(ModelView, model=User):
     column_list = [
-        'id', 'email', 'sex', 'avatar', 'short_description', 'origin', 'language','hashed_password'
+        'id', 'email', 'sex', 'avatar', 'short_description', 'origin', 'language', "is_active", 'hashed_password'
+    ]
+
+class FollowerView(ModelView, model=Follower):
+    column_list = [
+        'id', 'followed_id', 'follower_id'
     ]
