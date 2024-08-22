@@ -1,6 +1,6 @@
 from sqlalchemy import Boolean, Column, ForeignKey, Integer, String
 from sqlalchemy.orm import relationship
-
+from app.config import IP_ADDRESS
 from ...database import Base
 
 
@@ -27,7 +27,11 @@ class User(Base):
     comments = relationship('ArticleComment', back_populates='author', cascade='all, delete-orphan')  
     
     wish_list = relationship('WishList', back_populates='user', cascade='all, delete-orphan')
-
+    
+    @property
+    def avatar_url(self):
+        return IP_ADDRESS + self.avatar
+    
 class Follower(Base):
     __tablename__ = "followers"
 

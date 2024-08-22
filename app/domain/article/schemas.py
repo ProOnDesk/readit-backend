@@ -1,6 +1,12 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, root_validator
 from datetime import datetime
 
+class UserInfo(BaseModel):
+    id: int
+    first_name: str
+    last_name: str
+    avatar_url: str
+    
 class BaseTag(BaseModel):
     value: str
 
@@ -9,14 +15,11 @@ class ResponseTag(BaseTag):
     
 class BaseArticle(BaseModel):
     title: str
-    content: str
     summary: str
     tags: list[BaseTag]
     
 class CreateArticle(BaseArticle):
-    
-    class Config:
-        from_attributes = True
+    content: str
     
 class BaseCommentArticle(BaseModel):
     content: str
@@ -28,19 +31,19 @@ class CreateCommentArticle(BaseCommentArticle):
         
 class ResponseCommentArticle(BaseCommentArticle):
     id: int
-    author_id: int
+    author: UserInfo
     article_id: int
     created_at: datetime
     
 class ResponseArticle(BaseArticle):
     id: int
-    author_id: int
+    author: UserInfo
     slug: str
     created_at: datetime
     view_count: int
 
 class ResponseArticleDetail(ResponseArticle):
-    comments: list[ResponseCommentArticle]
+    content: str
     
 class BaseWishList(BaseModel):
     article: ResponseArticle

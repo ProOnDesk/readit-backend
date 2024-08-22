@@ -26,6 +26,13 @@ def get_article_by_id(article_id: int, db: Session = Depends(get_db))-> schemas.
     db_article = service.get_article_by_id(db=db, article_id=article_id)
     if db_article is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Article does not exist")
+    
+    db_article.view_count += 1
+    
+    db.add(db_article)
+    db.commit()
+    db.refresh(db_article)
+    
     return db_article
 
 
