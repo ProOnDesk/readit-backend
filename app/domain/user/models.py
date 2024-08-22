@@ -25,6 +25,8 @@ class User(Base):
     
     articles = relationship('Article', back_populates='author', cascade='all, delete-orphan')
     comments = relationship('ArticleComment', back_populates='author', cascade='all, delete-orphan')  
+    
+    wish_list = relationship('WishList', back_populates='user', cascade='all, delete-orphan')
 
 class Follower(Base):
     __tablename__ = "followers"

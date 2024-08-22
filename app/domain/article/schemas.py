@@ -42,3 +42,12 @@ class ResponseArticle(BaseArticle):
 
 class ResponseArticleDetail(ResponseArticle):
     comments: list[ResponseCommentArticle]
+    
+class BaseWishList(BaseModel):
+    article_id: int
+    user_id: int
+
+class ResponseWishList(BaseWishList):
+    id: int
+    created_at: datetime
+    
