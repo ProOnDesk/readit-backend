@@ -1,12 +1,11 @@
-
-from fastapi import FastAPI, Request, Response
+from fastapi import FastAPI, Request, Response, staticfiles
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from .database import engine, Base, SessionLocal
-from .config import CORS_ORIGINS, SECRET_KEY, ENCRYPTION_ALGORITHM
+from app.database import engine, Base, SessionLocal
+from app.config import CORS_ORIGINS, SECRET_KEY, ENCRYPTION_ALGORITHM
 from . import routers
-from .routers import oauth2, article
+from app.routers import oauth2, user, article
 from app.internal.admin import create_admin
 
 def create_db() -> None:
@@ -15,7 +14,7 @@ def create_db() -> None:
     """
 
     # Import models to create database
-    from app.domain.user.models import User
+    from app.domain.user.models import User, Follower
 
     # Create the database
     Base.metadata.create_all(bind=engine)
@@ -43,6 +42,7 @@ def get_application() -> FastAPI:
     fapp.include_router(routers.router)
     fapp.include_router(oauth2.router)
     fapp.include_router(article.router)
+    fapp.include_router(user.router)
 
     return fapp
 
@@ -51,6 +51,8 @@ def get_application() -> FastAPI:
 app = get_application()
 
 admin = create_admin(app)
+
+app.mount("/media/uploads/user", staticfiles.StaticFiles(directory="media/uploads/user"), name="user_uploads")
 
 @app.middleware("http")
 async def db_session_middleware(request: Request, call_next):
