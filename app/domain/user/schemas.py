@@ -7,6 +7,8 @@ class UserBase(BaseModel):
     sex: str
     origin: str
     language: str
+    first_name: str
+    last_name: str
     
 class UserCreate(UserBase):
     password: str

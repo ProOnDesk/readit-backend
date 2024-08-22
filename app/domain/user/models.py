@@ -8,6 +8,8 @@ class User(Base):
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
+    first_name = Column(String(31), unique=False)
+    last_name = Column(String(31), unique=False)
     email = Column(String(63), unique=True)
     sex = Column(String(31), unique=False)
     avatar = Column(String, unique=False, default="media/uploads/user/default.jpg")
@@ -16,7 +18,7 @@ class User(Base):
     language = Column(String(31), unique=False)
     is_active = Column(Boolean, unique=False, default=False)
     follower_count = Column(Integer, unique=False, default=0)
-    hashed_password = Column(String)
+    hashed_password = Column(String, unique=False)
 
     followers = relationship('Follower', foreign_keys='Follower.follower_id', back_populates='follower', overlaps="following", lazy=True, cascade="all, delete-orphan")
     following = relationship('Follower', foreign_keys='Follower.followed_id', back_populates='followed', overlaps="followers", lazy=True, cascade="all, delete-orphan")
