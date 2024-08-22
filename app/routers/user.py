@@ -17,24 +17,31 @@ router = APIRouter(
     responses={404: {'description': 'Not found'}, 500: {'description': 'Internal Server Error'}},
 )
 
-@router.post("/register")
+class RegistrationModel(BaseModel):
+    email: str
+    password: str
+    firstname: str
+    lastname: str
+    sex: str
+    language:str
+    origin: str
+
+@router.post("/register", status_code=status.HTTP_201_CREATED)
 async def register_user(
     response: Response,
-    email: Annotated[str, Form()], 
-    password: Annotated[str, Form()],
-    sex: Annotated[str, Form()],
-    origin: Annotated[str, Form()],
-    language: Annotated[str, Form()],
+    body: Annotated[RegistrationModel, Body()], 
     db: Session = Depends(get_db)
 ) -> DefaultResponseModel:
     
     try:
         create_user(db, UserCreate(
-            email=email,
-            password=password,
-            origin=origin,
-            sex=sex,
-            language=language
+            email=body.email,
+            password=body.password,
+            origin=body.origin,
+            sex=body.sex,
+            language=body.language,
+            first_name=body.firstname,
+            last_name=body.lastname
         ))
     except Exception as e:
         print(e)
@@ -42,9 +49,9 @@ async def register_user(
 
     await send_email(
         'Email confirmation.',
-        email,
+        body.email,
         {
-            'link': f'http://127.0.0.1:8000/?key={jwt.encode({'email': email}, SECRET_KEY, algorithm=ENCRYPTION_ALGORITHM)}'
+            'link': f'http://127.0.0.1:8000/?key={jwt.encode({'email': body.email}, SECRET_KEY, algorithm=ENCRYPTION_ALGORITHM)}'
         }, 
         'email_confirmation.html'
     )
@@ -53,14 +60,17 @@ async def register_user(
         "message": "User created"
     }
 
-@router.post("/verify/{key}")
+@router.post("/verify/{key}", status_code=status.HTTP_200_OK)
 async def confirm_user(
     key: Annotated[str, Path(title="User to confirm")],
     db: Session = Depends(get_db)
 ) -> DefaultResponseModel:
     decoded_user = jwt.decode(key, SECRET_KEY, algorithms=[ENCRYPTION_ALGORITHM])
     if not (current_user := get_user_by_email(db, decoded_user.get("email"))):
-        raise HTTPException(status_code=400)
+        raise HTTPException(status_code=400, detail="User doesn\'t exist")
+    
+    if current_user:
+        raise HTTPException(status_code=400, detail="User is already active")
 
     current_user.is_active = True
     db.commit()
@@ -72,19 +82,19 @@ async def confirm_user(
 class EmailBody(BaseModel):
     email: str
 
-@router.post("/password-reset/")
+@router.post("/password-reset/", status_code=status.HTTP_201_CREATED)
 async def send_email_with_key_to_change_password(
     body: Annotated[EmailBody, Body(title="User to confirm")],
     db: Session = Depends(get_db)
 ) -> DefaultResponseModel:
-    if not get_user_by_email(db, body.email):
+    if not (user := get_user_by_email(db, body.email)):
         raise HTTPException(status=404, detail='User with this email doesn\'t exist')
     
     await send_email(
         'Password reset.',
         body.email,
         {
-            'link': f'http://127.0.0.1:8000/?key={jwt.encode({'email': body.email}, SECRET_KEY, algorithm=ENCRYPTION_ALGORITHM)}'
+            'link': f'http://127.0.0.1:8000/?key={jwt.encode({'email': body.email, 'hashed_password': user.hashed_password}, SECRET_KEY, algorithm=ENCRYPTION_ALGORITHM)}'
         }, 
         'password_reset.html'
     )
@@ -96,7 +106,7 @@ async def send_email_with_key_to_change_password(
 class PasswordBody(BaseModel):
     password: str
 
-@router.post("/password-reset/{key}")
+@router.post("/password-reset/{key}", status_code=status.HTTP_200_OK)
 async def change_password(
     key: Annotated[str, Path(title="Key that allows for password change")],
     body: Annotated[PasswordBody, Body(title="New password")],
@@ -105,6 +115,9 @@ async def change_password(
     decoded_email = jwt.decode(key, SECRET_KEY, algorithms=[ENCRYPTION_ALGORITHM])
     if not (current_user := get_user_by_email(db, decoded_email.get("email"))):
         raise HTTPException(status_code=404)
+    
+    if decoded_email.get('hashed_password') != current_user.hashed_password:
+        raise HTTPException(status=404, detail='This key doesn\'t work anymore')
 
     current_user.hashed_password = hash_password(body.password)
     db.commit()
@@ -113,7 +126,7 @@ async def change_password(
         "message": "Password changed"
     }
 
-@router.get("/get")
+@router.get("/get", status_code=status.HTTP_200_OK)
 async def get_user_by_access_token(
     user_id: Annotated[int, Depends(authenticate)],
     db: Session = Depends(get_db)
@@ -136,7 +149,9 @@ async def get_user_by_access_token(
         "short_description": user.short_description,
         "origin": user.origin,
         "language": user.language,
-        "follower_count": user.follower_count
+        "follower_count": user.follower_count,
+        "first_name": user.first_name,
+        "last_name": user.last_name
     }
 
 class UserProfileById(BaseModel):
@@ -147,8 +162,10 @@ class UserProfileById(BaseModel):
     origin: str
     language: str
     followers_count: int
+    first_name: str
+    last_name: str
 
-@router.get("/get/{user_id}")
+@router.get("/get/{user_id}", status_code=status.HTTP_200_OK)
 async def get_user_by_user_id(
     user_id: Annotated[str, Path(title="User id")],
     db: Session = Depends(get_db)
@@ -169,7 +186,9 @@ async def get_user_by_user_id(
         "short_description": user.short_description,
         "origin": user.origin,
         "language": user.language,
-        "follower_count": user.follower_count
+        "follower_count": user.follower_count,
+        "first_name": user.first_name,
+        "last_name": user.last_name
     }
 
 class PasswordChangeModel(BaseModel):
@@ -182,8 +201,10 @@ class ModifyUserModel(BaseModel):
     short_description: str | None = None
     origin: str | None = None
     language: str | None = None
+    first_name: str | None = None
+    last_name: str | None = None
 
-@router.patch("/modify")
+@router.patch("/modify", status_code=status.HTTP_200_OK)
 async def modify_user(
     changes: Annotated[ModifyUserModel, Body(title="Changes to be applied")],
     user_id: Annotated[int, Depends(authenticate)],
@@ -210,6 +231,12 @@ async def modify_user(
 
     if changes.language:
         user.language = changes.language
+    
+    if changes.first_name:
+        user.first_name = changes.first_name
+
+    if changes.last_name:
+        user.last_name = changes.last_name
 
     db.commit()
 
@@ -221,10 +248,12 @@ async def modify_user(
         "short_description": user.short_description,
         "origin": user.origin,
         "language": user.language,
-        "follower_count": user.follower_count
+        "follower_count": user.follower_count,
+        "first_name": user.first_name,
+        "last_name": user.last_name
     }
 
-@router.patch("/modify/password")
+@router.patch("/modify/password", status_code=status.HTTP_200_OK)
 async def modify_password(
     passwords: Annotated[PasswordChangeModel, Body(title="Changes to be applied")],
     user_id: Annotated[int, Depends(authenticate)],
@@ -251,7 +280,7 @@ async def modify_password(
         'message': 'Password changed'
     }
 
-@router.patch("/modify/avatar")
+@router.patch("/modify/avatar", status_code=status.HTTP_200_OK)
 async def modify_avatar(
     file: Annotated[UploadFile, File(title="Image for avatar")],
     user_id: Annotated[int, Depends(authenticate)],
@@ -287,10 +316,12 @@ async def modify_avatar(
         "short_description": user.short_description,
         "origin": user.origin,
         "language": user.language,
-        "follower_count": user.follower_count
+        "follower_count": user.follower_count,
+        "first_name": user.first_name,
+        "last_name": user.last_name
     }
 
-@router.post("/follow/{followed_id}")
+@router.post("/follow/{followed_id}", status_code=status.HTTP_201_CREATED)
 async def follow_user(
     followed_id: Annotated[int, Path(title="Id of person that is being followed")],
     user_id: Annotated[int, Depends(authenticate)],
@@ -329,7 +360,7 @@ async def follow_user(
 
 
 
-@router.delete("/follow/{followed_id}")
+@router.delete("/follow/{followed_id}", status_code=status.HTTP_200_OK)
 async def unfollow_user(
     followed_id: Annotated[int, Path(title="Id of person that is being unfollowed")],
     user_id: Annotated[int, Depends(authenticate)],
@@ -363,7 +394,7 @@ async def unfollow_user(
 class FollowsAmountModel(BaseModel):
     follows_amount: int
 
-@router.get("/followers/{followed_id}")
+@router.get("/followers/{followed_id}", status_code=status.HTTP_200_OK)
 async def get_followers_amount(
     followed_id: Annotated[int, Path(title="Id of person that is being followed")],
     db: Session = Depends(get_db)

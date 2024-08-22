@@ -1,5 +1,5 @@
 from typing import Annotated
-from fastapi import APIRouter, Depends, Response
+from fastapi import APIRouter, Depends, Response, status
 from ..dependencies import validate_credentials, Tokens, EncodedTokens, retrieve_refresh_token, authenticate, create_token, RefreshToken
 from app.config import ACCESS_TOKEN_EXPIRE_TIME
 import datetime
@@ -10,7 +10,7 @@ router = APIRouter(
     responses={404: {'description': 'Not found'}, 500: {'description': 'Internal Server Error'}},
 )
 
-@router.post("/token")
+@router.post("/token", status_code=status.HTTP_201_CREATED)
 async def login_for_access_token(
     response: Response,
     tokens: EncodedTokens = Depends(validate_credentials)
@@ -23,7 +23,7 @@ async def login_for_access_token(
         "message": "Authenticated"
     }
 
-@router.post("/refresh-token")
+@router.post("/refresh-token", status_code=status.HTTP_201_CREATED)
 async def refresh_for_access_token(
     response: Response,
     refresh_token: RefreshToken = Depends(retrieve_refresh_token)
