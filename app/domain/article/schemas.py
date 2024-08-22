@@ -9,7 +9,6 @@ class ResponseTag(BaseTag):
     
 class BaseArticle(BaseModel):
     title: str
-    language: str
     content: str
     summary: str
     tags: list[BaseTag]
@@ -44,7 +43,7 @@ class ResponseArticleDetail(ResponseArticle):
     comments: list[ResponseCommentArticle]
     
 class BaseWishList(BaseModel):
-    article_id: int
+    article: ResponseArticle
     user_id: int
 
 class ResponseWishList(BaseWishList):

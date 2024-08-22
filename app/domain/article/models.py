@@ -42,7 +42,6 @@ class Article(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     title = Column(String(255), nullable=False)
     slug = Column(String(255), nullable=True, unique=True)
-    language = Column(String(50), nullable=False)
     content = Column(Text, nullable=False)
     summary = Column(String(1000), nullable=True)
     author_id = Column(Integer, ForeignKey('users.id'), nullable=False)
