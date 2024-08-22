@@ -15,3 +15,6 @@ class User(Base):
     origin = Column(String, unique=False)
     language = Column(String, unique=False)
     hashed_password = Column(String)
+    
+    articles = relationship('Article', back_populates='author', cascade='all, delete-orphan')
+    comments = relationship('ArticleComment', back_populates='author', cascade='all, delete-orphan')  

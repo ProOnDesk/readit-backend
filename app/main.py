@@ -6,7 +6,7 @@ from pydantic import BaseModel
 from .database import engine, Base, SessionLocal
 from .config import CORS_ORIGINS, SECRET_KEY, ENCRYPTION_ALGORITHM
 from . import routers
-from .routers import oauth2
+from .routers import oauth2, article
 from app.internal.admin import create_admin
 
 def create_db() -> None:
@@ -42,6 +42,7 @@ def get_application() -> FastAPI:
 
     fapp.include_router(routers.router)
     fapp.include_router(oauth2.router)
+    fapp.include_router(article.router)
 
     return fapp
 
