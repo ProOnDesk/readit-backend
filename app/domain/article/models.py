@@ -1,4 +1,4 @@
-from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, Text, Table, event, UniqueConstraint
+from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, Text, Table, event, UniqueConstraint, func
 from sqlalchemy.orm import relationship, Session
 from sqlalchemy.types import DateTime
 from ...database import Base
@@ -42,19 +42,19 @@ class Article(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     title = Column(String(255), nullable=False)
     slug = Column(String(255), nullable=True, unique=True)
-    language = Column(String(50), nullable=False)
     content = Column(Text, nullable=False)
     summary = Column(String(1000), nullable=True)
     author_id = Column(Integer, ForeignKey('users.id'), nullable=False)
-    created_at = Column(DateTime, default=datetime.datetime.now(datetime.UTC))
+    created_at = Column(DateTime, server_default=func.timezone('UTC', func.now()))
     view_count = Column(Integer, default=0)
 
-    # Many-to-many relationship with tags
     tags = relationship('Tag', secondary='article_tag', back_populates='articles')
     
     author = relationship('User', back_populates='articles')
     
     comments = relationship('ArticleComment', back_populates='article', cascade='all, delete-orphan')
+    
+    wish_list = relationship('WishList', back_populates='article')
         
     def __repr__(self):
         return f"<Article(id={self.id}, title={self.title}, author={self.author}, created_at={self.created_at})>"
@@ -65,14 +65,26 @@ class ArticleComment(Base):
     author_id = Column(Integer, ForeignKey('users.id'), nullable=False)
     article_id = Column(Integer, ForeignKey('articles.id'), nullable=False)
     content = Column(String(1000), nullable=False)
-    created_at = Column(DateTime, default=datetime.datetime.now(datetime.UTC))
+    created_at = Column(DateTime, server_default=func.timezone('UTC', func.now()))
     rating = Column(Integer, nullable=False, default=1)
+    
     author = relationship('User', back_populates='comments')
     article = relationship('Article', back_populates='comments')
     
     __table_args__ = (
-        UniqueConstraint('author_id', 'article_id', name='unique_author_article'),
+        UniqueConstraint('author_id', 'article_id', name='unique_author_article', ),
     )
+
+class WishList(Base):
+    __tablename__ = "wishlists"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    article_id = Column(Integer, ForeignKey('articles.id'), nullable=False)
+    user_id = Column(Integer, ForeignKey('users.id'), nullable=False)
+    created_at = Column(DateTime, server_default=func.timezone('UTC', func.now()))
+
+    user = relationship('User', back_populates='wish_list')
+    article = relationship('Article', back_populates='wish_list')
+    
 @event.listens_for(Article, 'before_insert')
 @event.listens_for(Article, 'before_update')
 def set_unique_slug(mapper, connection, target):

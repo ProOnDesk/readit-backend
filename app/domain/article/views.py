@@ -1,5 +1,5 @@
 from sqladmin import Admin, ModelView
-from .models import Article, Tag, ArticleComment
+from .models import Article, Tag, ArticleComment, WishList
 
 class ArticleView(ModelView, model=Article):
     column_list = [
@@ -31,4 +31,12 @@ class ArticleCommentView(ModelView, model=ArticleComment):
         'author_id',
         'article_id',
         'content',
+    ]
+
+class WishListView(ModelView, model=WishList):
+    column_list = [
+        'id',
+        'user_id',
+        'article_id',
+        'created_at'
     ]

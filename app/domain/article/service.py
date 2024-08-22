@@ -80,4 +80,43 @@ def delete_article_comment(db: Session, article_comment: models.ArticleComment):
     db.delete(article_comment)
     db.commit()
     return True
+
+def create_wish_list(db: Session, article_id: int, user_id: int):
+    article = db.query(models.Article).filter(models.Article.id == article_id).first()
+    if article is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Article id does not exists")
     
+    existing_wish_list = db.query(models.WishList).filter(
+        models.WishList.article_id == article_id,
+        models.WishList.user_id == user_id
+    ).first()
+    if existing_wish_list:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="You already have this article in your wish list.")
+    
+    db_wish_list = models.WishList(article_id=article_id, user_id=user_id)
+    db.add(db_wish_list)
+    db.commit()
+    db.refresh(db_wish_list)
+    return db_wish_list
+
+def delete_wish_list(db: Session, wish_list: models.WishList):
+    db.delete(wish_list)
+    db.commit()
+    return True
+
+def get_wish_list_by_user_id(db: Session, user_id: int, sort_order: Union[None, Literal['asc', 'desc']] = None): 
+    if sort_order == 'asc':
+        db_wish_lists = db.query(models.WishList).filter(models.WishList.user_id == user_id).order_by(models.WishList.created_at.asc()).all()
+    elif sort_order == 'desc':
+        db_wish_lists = db.query(models.WishList).filter(models.WishList.user_id == user_id).order_by(models.WishList.created_at.desc()).all()
+    elif sort_order is None:
+        db_wish_lists = db.query(models.WishList).filter(models.WishList.user_id == user_id).all()
+    else:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid sort order. Allowed values are 'asc' and 'desc'.")
+
+    return db_wish_lists
+
+def get_wish_list_by_user_id_and_article_id(db: Session, user_id: int, article_id: int):
+    db_wish_list = db.query(models.WishList).filter(models.WishList.user_id == user_id,
+                                                    models.WishList.article_id == article_id).first()
+    return db_wish_list

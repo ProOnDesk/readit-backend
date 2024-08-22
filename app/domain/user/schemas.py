@@ -1,7 +1,5 @@
 from pydantic import BaseModel
 
-
-
 class UserBase(BaseModel):
     email: str
     sex: str
@@ -39,3 +37,4 @@ class Follower(BaseModel):
     id: int
     follower_id: int
     followed_id: int
+    
