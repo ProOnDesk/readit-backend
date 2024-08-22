@@ -19,6 +19,20 @@ class CreateArticle(BaseArticle):
     class Config:
         from_attributes = True
     
+class BaseCommentArticle(BaseModel):
+    content: str
+    rating: int
+    
+class CreateCommentArticle(BaseCommentArticle):
+    class Config:
+        from_attributes = True
+        
+class ResponseCommentArticle(BaseCommentArticle):
+    id: int
+    author_id: int
+    article_id: int
+    created_at: datetime
+    
 class ResponseArticle(BaseArticle):
     id: int
     author_id: int
@@ -26,3 +40,5 @@ class ResponseArticle(BaseArticle):
     created_at: datetime
     view_count: int
 
+class ResponseArticleDetail(ResponseArticle):
+    comments: list[ResponseCommentArticle]

@@ -1,4 +1,4 @@
-from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, Text, Table, event
+from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, Text, Table, event, UniqueConstraint
 from sqlalchemy.orm import relationship, Session
 from sqlalchemy.types import DateTime
 from ...database import Base
@@ -66,10 +66,13 @@ class ArticleComment(Base):
     article_id = Column(Integer, ForeignKey('articles.id'), nullable=False)
     content = Column(String(1000), nullable=False)
     created_at = Column(DateTime, default=datetime.datetime.now(datetime.UTC))
-
-    author = relationship('User', back_populates='article_comment')
+    rating = Column(Integer, nullable=False, default=1)
+    author = relationship('User', back_populates='comments')
     article = relationship('Article', back_populates='comments')
     
+    __table_args__ = (
+        UniqueConstraint('author_id', 'article_id', name='unique_author_article'),
+    )
 @event.listens_for(Article, 'before_insert')
 @event.listens_for(Article, 'before_update')
 def set_unique_slug(mapper, connection, target):
