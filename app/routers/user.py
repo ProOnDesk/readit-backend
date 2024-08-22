@@ -1,11 +1,14 @@
 from typing import Annotated
-from fastapi import APIRouter, Depends, Response, Form, HTTPException, Path, Body, Query, status
+from fastapi import APIRouter, Depends, Response, Form, HTTPException, Path, Body, Query, status, File, UploadFile
 from sqlalchemy.orm import Session
 from app.dependencies import send_email, get_db, DefaultResponseModel, authenticate
-from app.config import SECRET_KEY, ENCRYPTION_ALGORITHM, IP_ADDRESS
-from app.domain.user.service import create_user, hash_password, get_user_by_email_and_hashed_password, get_user_by_email, get_user
-from app.domain.user.schemas import UserCreate, UserProfile
+from app.config import SECRET_KEY, ENCRYPTION_ALGORITHM, IP_ADDRESS, IMAGE_DIR
+from app.domain.user.service import ( create_user, hash_password, 
+    get_user_by_email, get_user, create_follow,
+    get_follow_by_both_ids, delete_follow, get_follows_amount, verify_password )
+from app.domain.user.schemas import UserCreate, UserProfile, Follower
 from pydantic import BaseModel
+from uuid import uuid4
 import jwt
 
 router = APIRouter(
@@ -41,7 +44,7 @@ async def register_user(
         'Email confirmation.',
         email,
         {
-            'link': f'http://127.0.0.1:8000/?key={jwt.encode({'email': email, 'password': hash_password(password)}, SECRET_KEY, algorithm=ENCRYPTION_ALGORITHM)}'
+            'link': f'http://127.0.0.1:8000/?key={jwt.encode({'email': email}, SECRET_KEY, algorithm=ENCRYPTION_ALGORITHM)}'
         }, 
         'email_confirmation.html'
     )
@@ -56,7 +59,7 @@ async def confirm_user(
     db: Session = Depends(get_db)
 ) -> DefaultResponseModel:
     decoded_user = jwt.decode(key, SECRET_KEY, algorithms=[ENCRYPTION_ALGORITHM])
-    if not (current_user := get_user_by_email_and_hashed_password(db, decoded_user.get("email"), decoded_user.get("password"))):
+    if not (current_user := get_user_by_email(db, decoded_user.get("email"))):
         raise HTTPException(status_code=400)
 
     current_user.is_active = True
@@ -121,6 +124,9 @@ async def get_user_by_access_token(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail='Invalid credentials'
         )
+    
+    user.follower_count = get_follows_amount(db, user.id)
+    db.commit()
 
     return {
         "id": user.id,
@@ -129,7 +135,8 @@ async def get_user_by_access_token(
         "avatar": IP_ADDRESS + user.avatar,
         "short_description": user.short_description,
         "origin": user.origin,
-        "language": user.language
+        "language": user.language,
+        "follower_count": user.follower_count
     }
 
 class UserProfileById(BaseModel):
@@ -139,6 +146,7 @@ class UserProfileById(BaseModel):
     short_description: str
     origin: str
     language: str
+    followers_count: int
 
 @router.get("/get/{user_id}")
 async def get_user_by_user_id(
@@ -150,6 +158,9 @@ async def get_user_by_user_id(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail='Invalid credentials'
         )
+    
+    user.follower_count = get_follows_amount(db, user.id)
+    db.commit()
 
     return {
         "id": user.id,
@@ -157,5 +168,218 @@ async def get_user_by_user_id(
         "avatar": IP_ADDRESS + user.avatar,
         "short_description": user.short_description,
         "origin": user.origin,
-        "language": user.language
+        "language": user.language,
+        "follower_count": user.follower_count
+    }
+
+class PasswordChangeModel(BaseModel):
+    old_password: str
+    new_password: str
+
+class ModifyUserModel(BaseModel):
+    email: str | None = None
+    sex: str | None = None
+    short_description: str | None = None
+    origin: str | None = None
+    language: str | None = None
+
+@router.patch("/modify")
+async def modify_user(
+    changes: Annotated[ModifyUserModel, Body(title="Changes to be applied")],
+    user_id: Annotated[int, Depends(authenticate)],
+    db: Session = Depends(get_db)
+) -> UserProfile:
+    
+    if not (user := get_user(db, user_id)):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail='User with this id doesn\'t exist'
+        )
+    
+    if changes.email:
+        user.email = changes.email
+    
+    if changes.sex:
+        user.sex = changes.sex
+
+    if changes.short_description:
+        user.short_description = changes.short_description
+
+    if changes.origin:
+        user.origin = changes.origin
+
+    if changes.language:
+        user.language = changes.language
+
+    db.commit()
+
+    return {
+        "id": user.id,
+        "email": user.email,
+        "sex": user.sex,
+        "avatar": IP_ADDRESS + user.avatar,
+        "short_description": user.short_description,
+        "origin": user.origin,
+        "language": user.language,
+        "follower_count": user.follower_count
+    }
+
+@router.patch("/modify/password")
+async def modify_password(
+    passwords: Annotated[PasswordChangeModel, Body(title="Changes to be applied")],
+    user_id: Annotated[int, Depends(authenticate)],
+    db: Session = Depends(get_db)
+) -> DefaultResponseModel:
+
+    if not (user := get_user(db, user_id)):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail='User with this id doesn\'t exist'
+        )
+    
+    if verify_password(passwords.old_password, user.hashed_password):
+        user.hashed_password = hash_password(passwords.new_password)
+        db.commit()
+
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail='User with this id doesn\'t exist'
+        )
+    
+    return {
+        'message': 'Password changed'
+    }
+
+@router.patch("/modify/avatar")
+async def modify_avatar(
+    file: Annotated[UploadFile, File(title="Image for avatar")],
+    user_id: Annotated[int, Depends(authenticate)],
+    db: Session = Depends(get_db)
+) -> UserProfile:
+
+    if not (user := get_user(db, user_id)):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail='User with this id doesn\'t exist'
+        )
+    
+    if file.filename.split(".")[-1] not in ['img', 'png', 'jpg', 'jpeg']:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail='File with this format isn\'t accepted'
+        )
+    
+    file.filename = f'{uuid4()}.{file.filename.split(".")[-1]}'
+    contents = await file.read()
+
+    with open(f"{IMAGE_DIR}{file.filename}", "wb") as f:
+        f.write(contents)
+    
+    user.avatar = f"{IMAGE_DIR}{file.filename}"
+    db.commit()
+    
+    return {
+        "id": user.id,
+        "email": user.email,
+        "sex": user.sex,
+        "avatar": IP_ADDRESS + user.avatar,
+        "short_description": user.short_description,
+        "origin": user.origin,
+        "language": user.language,
+        "follower_count": user.follower_count
+    }
+
+@router.post("/follow/{followed_id}")
+async def follow_user(
+    followed_id: Annotated[int, Path(title="Id of person that is being followed")],
+    user_id: Annotated[int, Depends(authenticate)],
+    db: Session = Depends(get_db)
+) -> Follower:
+    
+    if not (followed_user := get_user(db, followed_id)):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail='Followed user with this id doesn\'t exist'
+        )
+    
+    if get_follow_by_both_ids(db, followed_id, user_id):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail='Such follow already exists'
+        )
+    
+    if user_id == followed_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail='You can\'t follow yourself'
+        )
+    
+    if not (follow := create_follow(db, followed_id, user_id)):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail='Invalid data'
+        )
+    
+    return {
+        "id": follow.id,
+        "followed_id": follow.followed_id,
+        "follower_id": follow.follower_id
+    }
+
+
+
+@router.delete("/follow/{followed_id}")
+async def unfollow_user(
+    followed_id: Annotated[int, Path(title="Id of person that is being unfollowed")],
+    user_id: Annotated[int, Depends(authenticate)],
+    db: Session = Depends(get_db)
+) -> DefaultResponseModel:
+    
+    if not (followed_user := get_user(db, followed_id)):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail='Followed user with this id doesn\'t exist'
+        )
+    
+    if user_id == followed_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail='You can\'t follow or unfollow yourself'
+        )
+    
+    if not (follow := get_follow_by_both_ids(db, followed_id, user_id)):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail='Such follow doesn\'t exists'
+        )
+    
+    delete_follow(db, follow.id)
+    
+    return {
+        "message": "Unfollowed succesfully"
+    }
+
+class FollowsAmountModel(BaseModel):
+    follows_amount: int
+
+@router.get("/followers/{followed_id}")
+async def get_followers_amount(
+    followed_id: Annotated[int, Path(title="Id of person that is being followed")],
+    db: Session = Depends(get_db)
+) -> FollowsAmountModel:
+    if not (user := get_user(db, followed_id)):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail='User with this id doesn\'t exist'
+        )
+    
+    if (follows_amount := get_follows_amount(db, user.id)) == None: 
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail='User with this id doesn\'t existt'
+        )
+    
+    return {
+        "follows_amount": follows_amount
     }

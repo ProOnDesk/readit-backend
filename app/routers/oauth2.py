@@ -49,7 +49,7 @@ async def refresh_for_access_token(
 
 ### Returns body with real tokens
 @router.get("/cookies")
-async def get_cookies(
+async def get_cookies_testing_request(
     user_id: Annotated[int, Depends(authenticate)]
 ):
     return {"uid": user_id}

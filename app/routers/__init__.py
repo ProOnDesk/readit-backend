@@ -4,7 +4,7 @@ from fastapi.responses import HTMLResponse
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from ..dependencies import get_db
-from app.domain.user.service import get_user_by_email_and_hashed_password
+from app.domain.user.service import get_user_by_email
 from app.config import SECRET_KEY, ENCRYPTION_ALGORITHM
 import jwt
 
@@ -61,14 +61,14 @@ html = """
 
 
 @router.get("/")
-async def get(
+async def get_testing_request(
     user: Annotated[str | None, Query(title="User to confirm")],
     db: Session = Depends(get_db)
 ):
     if user:
         try:
             decoded_user = jwt.decode(user, SECRET_KEY, algorithms=[ENCRYPTION_ALGORITHM])
-            if not (current_user := get_user_by_email_and_hashed_password(db, decoded_user.get("email"), decoded_user.get("password"))):
+            if not (current_user := get_user_by_email(db, decoded_user.get("email"))):
                 raise HTTPException(status_code=400)
         
             current_user.is_active = True

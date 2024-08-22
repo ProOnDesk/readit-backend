@@ -352,7 +352,7 @@ def authenticate(
 
 async def send_email(
     subject: str, email_to: str, body: dict[str, str], template: str
-) -> bool:
+) -> None:
 
     with open(f'./templates/email/{template}') as file_:
         template = Template(file_.read())

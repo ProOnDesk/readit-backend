@@ -13,11 +13,13 @@ class UserCreate(UserBase):
     avatar: str | None = "media/uploads/user/default.jpg"
     short_description: str | None = ""
     is_active: bool | None = False
+    follower_count: int | None = 0
 
 class UserProfile(UserBase):
     id: int
     avatar: str
     short_description: str
+    follower_count: int
 
     class Config:
         from_attributes = True
@@ -28,6 +30,7 @@ class User(UserBase):
     avatar: str
     short_description: str
     is_active: bool
+    follower_count: int
 
     class Config:
         from_attributes = True

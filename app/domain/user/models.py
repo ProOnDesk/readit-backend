@@ -15,10 +15,11 @@ class User(Base):
     origin = Column(String(31), unique=False)
     language = Column(String(31), unique=False)
     is_active = Column(Boolean, unique=False, default=False)
+    follower_count = Column(Integer, unique=False, default=0)
     hashed_password = Column(String)
 
-    followers = relationship('Follower', foreign_keys='Follower.follower_id', back_populates='follower', overlaps="following", lazy=True)
-    following = relationship('Follower', foreign_keys='Follower.followed_id', back_populates='followed', overlaps="followers", lazy=True)
+    followers = relationship('Follower', foreign_keys='Follower.follower_id', back_populates='follower', overlaps="following", lazy=True, cascade="all, delete-orphan")
+    following = relationship('Follower', foreign_keys='Follower.followed_id', back_populates='followed', overlaps="followers", lazy=True, cascade="all, delete-orphan")
 
 class Follower(Base):
     __tablename__ = "followers"
