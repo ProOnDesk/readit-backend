@@ -22,6 +22,9 @@ class User(Base):
 
     followers = relationship('Follower', foreign_keys='Follower.follower_id', back_populates='follower', overlaps="following", lazy=True, cascade="all, delete-orphan")
     following = relationship('Follower', foreign_keys='Follower.followed_id', back_populates='followed', overlaps="followers", lazy=True, cascade="all, delete-orphan")
+    
+    articles = relationship('Article', back_populates='author', cascade='all, delete-orphan')
+    comments = relationship('ArticleComment', back_populates='author', cascade='all, delete-orphan')  
 
 class Follower(Base):
     __tablename__ = "followers"

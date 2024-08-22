@@ -1,4 +1,3 @@
-
 from fastapi import FastAPI, Request, Response, staticfiles
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -6,7 +5,7 @@ from pydantic import BaseModel
 from app.database import engine, Base, SessionLocal
 from app.config import CORS_ORIGINS, SECRET_KEY, ENCRYPTION_ALGORITHM
 from . import routers
-from app.routers import oauth2, user
+from app.routers import oauth2, user, article
 from app.internal.admin import create_admin
 
 def create_db() -> None:
@@ -42,6 +41,7 @@ def get_application() -> FastAPI:
 
     fapp.include_router(routers.router)
     fapp.include_router(oauth2.router)
+    fapp.include_router(article.router)
     fapp.include_router(user.router)
 
     return fapp
