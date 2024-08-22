@@ -4,14 +4,32 @@ from fastapi import Request, Header, Depends, HTTPException, status, Form
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm, OAuth2
 from fastapi.openapi.models import OAuthFlows as OAuthFlowsModel
 from fastapi.security.utils import get_authorization_scheme_param
+from fastapi_mail import FastMail, MessageSchema, ConnectionConfig
 from sqlalchemy.orm import Session
-from .database import SessionLocal
+from app.database import SessionLocal
 from app.config import ACCESS_TOKEN_EXPIRE_TIME, SECRET_KEY, ENCRYPTION_ALGORITHM, REFRESH_TOKEN_EXPIRE_TIME
 from uuid import uuid4
 from pydantic import BaseModel
 from app.domain.user.service import get_user_by_email_and_password, get_user
+from jinja2 import Template
 import jwt
 import datetime
+import os
+
+
+conf = ConnectionConfig(
+    MAIL_USERNAME=os.environ.get("EMAIL"),
+    MAIL_PASSWORD=os.environ.get("PASSWORD"),
+    MAIL_FROM=os.environ.get("EMAIL"),
+    MAIL_PORT=587,
+    MAIL_SERVER="smtp.gmail.com",
+    MAIL_FROM_NAME="ReadIt",
+    MAIL_STARTTLS=True,
+    MAIL_SSL_TLS=False,
+    USE_CREDENTIALS=True,
+    TEMPLATE_FOLDER='./templates/email'
+)
+
 
 class MyOAuth2PasswordRequestForm:
     """
@@ -159,6 +177,9 @@ def get_db():
     finally:
         db.close()
 
+class DefaultResponseModel(BaseModel):
+    message: str
+
 class EncodedTokens(BaseModel):
     access_token: str | None
     refresh_token: str | None
@@ -205,6 +226,19 @@ oauth2_scheme = OAuth2PasswordBearerWithCookie(tokenUrl="/oauth2/token")
 def retrieve_tokens(
     token: Annotated[Tokens, Depends(oauth2_scheme)]
 ) -> Tokens:
+    
+    if token.access_token == "None":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail='Invalid credentials'
+        )
+    
+    if token.refresh_token == "None":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail='Invalid credentials'
+        )
+
 
     decoded_access_token = jwt.decode(token.access_token, SECRET_KEY, algorithms=[ENCRYPTION_ALGORITHM])
     decoded_refresh_token = jwt.decode(token.refresh_token, SECRET_KEY, algorithms=[ENCRYPTION_ALGORITHM])
@@ -227,7 +261,13 @@ def retrieve_tokens(
 def retrieve_access_token(
     token: Annotated[Tokens, Depends(oauth2_scheme)] 
 ) -> AccessToken:
-    
+
+    if token.access_token == "None":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail='Invalid credentials'
+        )
+
     decoded_access_token = jwt.decode(token.access_token, SECRET_KEY, algorithms=[ENCRYPTION_ALGORITHM])
 
     access_token = AccessToken(
@@ -243,6 +283,12 @@ def retrieve_refresh_token(
     token: Annotated[Tokens, Depends(oauth2_scheme)] 
 ) -> RefreshToken:
     
+    if token.refresh_token == "None":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail='Invalid credentials'
+        )
+    
     decoded_refresh_token = jwt.decode(token.refresh_token, SECRET_KEY, algorithms=[ENCRYPTION_ALGORITHM])
 
     refresh_token = RefreshToken(
@@ -257,6 +303,7 @@ def retrieve_refresh_token(
 def create_token(
     item: dict[str, str]
 ) -> str:
+    item.update({"token_type": "Bearer"})
     return jwt.encode(item, SECRET_KEY, algorithm=ENCRYPTION_ALGORITHM)
 
 def validate_credentials(
@@ -302,4 +349,22 @@ def authenticate(
         )
 
     return access_token.user_id
+
+async def send_email(
+    subject: str, email_to: str, body: dict[str, str], template: str
+) -> None:
+
+    with open(f'./templates/email/{template}') as file_:
+        template = Template(file_.read())
+        rendered_template = template.render(link=body.get('link'))
+    
+    message = MessageSchema(
+        subject=subject,
+        recipients=[email_to],
+        body=rendered_template,
+        subtype='html',
+    )
+    
+    fm = FastMail(conf)
+    await fm.send_message(message)
 
