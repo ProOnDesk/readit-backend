@@ -64,7 +64,7 @@ def get_comments_by_article_id(article_id: int, sort_order: Union[None, Literal[
     db_comments = service.get_article_comments_by_article_id(db=db, article_id=article_id, sort_order=sort_order)
     return paginate(db_comments)
 
-@router.get('/wish-list/add/{article_id}', status_code=status.HTTP_200_OK)
+@router.post('/wish-list/add/{article_id}', status_code=status.HTTP_200_OK)
 def add_article_to_wish_list(article_id: int, user_id: Annotated[int, Depends(authenticate)], db: Session = Depends(get_db)) -> schemas.ResponseWishList:
     db_wish_list = service.create_wish_list(db=db, article_id=article_id, user_id=user_id)
     return db_wish_list
