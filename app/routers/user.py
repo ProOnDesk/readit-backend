@@ -69,7 +69,7 @@ async def confirm_user(
     if not (current_user := get_user_by_email(db, decoded_user.get("email"))):
         raise HTTPException(status_code=400, detail="User doesn\'t exist")
     
-    if current_user:
+    if current_user.is_active:
         raise HTTPException(status_code=400, detail="User is already active")
 
     current_user.is_active = True
