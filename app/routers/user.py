@@ -47,7 +47,7 @@ async def register_user(
         'Email confirmation.',
         body.email,
         {
-            'link': f'http://127.0.0.1:8000/?key={jwt.encode({'email': body.email}, SECRET_KEY, algorithm=ENCRYPTION_ALGORITHM)}'
+            'link': f'http://127.0.0.1:3000/email-confirmation/?key={jwt.encode({'email': body.email}, SECRET_KEY, algorithm=ENCRYPTION_ALGORITHM)}'
         }, 
         'email_confirmation.html'
     )
@@ -90,7 +90,7 @@ async def send_email_with_key_to_change_password(
         'Password reset.',
         body.email,
         {
-            'link': f'http://127.0.0.1:8000/?key={jwt.encode({'email': body.email, 'hashed_password': user.hashed_password}, SECRET_KEY, algorithm=ENCRYPTION_ALGORITHM)}'
+            'link': f'http://127.0.0.1:3000/password-reset/?key={jwt.encode({'email': body.email, 'hashed_password': user.hashed_password}, SECRET_KEY, algorithm=ENCRYPTION_ALGORITHM)}'
         }, 
         'password_reset.html'
     )
