@@ -2,9 +2,16 @@ from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 from app.dependencies import get_or_create
 from . import models, schemas
+from typing import Union, Literal
 
-def get_articles(db: Session):
-    return db.query(models.Article).all()
+def get_articles(db: Session, sort_order: Union[None, Literal['asc', 'desc']] = None):
+    if sort_order == "asc":
+        return db.query(models.Article).order_by(models.Article.id.asc()).all()
+    elif sort_order == "desc":
+        return db.query(models.Article).order_by(models.Article.id.desc()).all()
+    elif sort_order is None:
+        return db.query(models.Article).all()
+    raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid sort order. Allowed values are 'asc' and 'desc'.")
 
 def get_article_by_slug(db: Session, slug: str):
     return db.query(models.Article).filter(slug == slug).first()
@@ -39,6 +46,16 @@ def get_article_comment_by_user_id_and_article_id(db: Session, user_id: int, art
     return db.query(models.ArticleComment).filter(models.ArticleComment.author_id == user_id,
                                                              models.ArticleComment.article_id == article_id).first()
     
+def get_article_comments_by_article_id(db: Session, article_id: int, sort_order: Union[None, Literal['asc', 'desc']]):
+    if sort_order == "asc":
+        return db.query(models.ArticleComment).filter(models.ArticleComment.article_id == article_id).order_by(models.ArticleComment.id.asc()).all()
+    elif sort_order == "desc":
+        return db.query(models.ArticleComment).filter(models.ArticleComment.article_id == article_id).order_by(models.ArticleComment.id.desc()).all()
+    elif sort_order is None:
+        return db.query(models.ArticleComment).filter(models.ArticleComment.article_id == article_id).all()
+    else:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid sort order. Allowed values are 'asc' and 'desc'.")
+
 def create_article_comment(db: Session, comment: schemas.CreateArticle, article_id: int, user_id: int):
     article = db.query(models.Article).filter(models.Article.id == article_id).first()
     if article is None:
