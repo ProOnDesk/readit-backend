@@ -7,6 +7,7 @@ from app.config import CORS_ORIGINS, SECRET_KEY, ENCRYPTION_ALGORITHM
 from . import routers
 from app.routers import oauth2, user, article
 from app.internal.admin import create_admin
+from fastapi_pagination import add_pagination
 
 def create_db() -> None:
     """
@@ -44,6 +45,8 @@ def get_application() -> FastAPI:
     fapp.include_router(article.router)
     fapp.include_router(user.router)
 
+    add_pagination(fapp)
+    
     return fapp
 
 

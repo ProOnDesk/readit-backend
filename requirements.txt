@@ -6,3 +6,4 @@ PyJWT>=1.7.1,<3.0.0
 sqladmin[full]>=0.18.0,<1.0.0
 fastapi-mail
 passlib[bcrypt]
+fastapi-pagination
