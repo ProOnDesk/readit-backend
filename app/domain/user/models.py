@@ -14,8 +14,6 @@ class User(Base):
     sex = Column(String(31), unique=False)
     avatar = Column(String, unique=False, default="media/uploads/user/default.jpg")
     short_description = Column(String(255), unique=False, default="")
-    origin = Column(String(31), unique=False)
-    language = Column(String(31), unique=False)
     is_active = Column(Boolean, unique=False, default=False)
     follower_count = Column(Integer, unique=False, default=0)
     hashed_password = Column(String, unique=False)

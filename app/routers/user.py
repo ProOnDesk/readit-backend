@@ -23,8 +23,6 @@ class RegistrationModel(BaseModel):
     firstname: str
     lastname: str
     sex: str
-    language:str
-    origin: str
 
 @router.post("/register", status_code=status.HTTP_201_CREATED)
 async def register_user(
@@ -37,9 +35,7 @@ async def register_user(
         create_user(db, UserCreate(
             email=body.email,
             password=body.password,
-            origin=body.origin,
             sex=body.sex,
-            language=body.language,
             first_name=body.firstname,
             last_name=body.lastname
         ))
@@ -147,8 +143,6 @@ async def get_user_by_access_token(
         "sex": user.sex,
         "avatar": IP_ADDRESS + user.avatar,
         "short_description": user.short_description,
-        "origin": user.origin,
-        "language": user.language,
         "follower_count": user.follower_count,
         "first_name": user.first_name,
         "last_name": user.last_name
@@ -159,8 +153,6 @@ class UserProfileById(BaseModel):
     sex: str
     avatar: str
     short_description: str
-    origin: str
-    language: str
     followers_count: int
     first_name: str
     last_name: str
@@ -184,8 +176,6 @@ async def get_user_by_user_id(
         "sex": user.sex,
         "avatar": IP_ADDRESS + user.avatar,
         "short_description": user.short_description,
-        "origin": user.origin,
-        "language": user.language,
         "follower_count": user.follower_count,
         "first_name": user.first_name,
         "last_name": user.last_name
@@ -199,8 +189,6 @@ class ModifyUserModel(BaseModel):
     email: str | None = None
     sex: str | None = None
     short_description: str | None = None
-    origin: str | None = None
-    language: str | None = None
     first_name: str | None = None
     last_name: str | None = None
 
@@ -225,12 +213,6 @@ async def modify_user(
 
     if changes.short_description:
         user.short_description = changes.short_description
-
-    if changes.origin:
-        user.origin = changes.origin
-
-    if changes.language:
-        user.language = changes.language
     
     if changes.first_name:
         user.first_name = changes.first_name
@@ -246,8 +228,6 @@ async def modify_user(
         "sex": user.sex,
         "avatar": IP_ADDRESS + user.avatar,
         "short_description": user.short_description,
-        "origin": user.origin,
-        "language": user.language,
         "follower_count": user.follower_count,
         "first_name": user.first_name,
         "last_name": user.last_name
@@ -314,8 +294,6 @@ async def modify_avatar(
         "sex": user.sex,
         "avatar": IP_ADDRESS + user.avatar,
         "short_description": user.short_description,
-        "origin": user.origin,
-        "language": user.language,
         "follower_count": user.follower_count,
         "first_name": user.first_name,
         "last_name": user.last_name

@@ -5,8 +5,6 @@ from pydantic import BaseModel
 class UserBase(BaseModel):
     email: str
     sex: str
-    origin: str
-    language: str
     first_name: str
     last_name: str
     

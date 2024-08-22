@@ -34,8 +34,6 @@ def create_user(db: Session, user: schemas.UserCreate):
         sex=user.sex,
         avatar=user.avatar,
         short_description=user.short_description,
-        origin=user.origin,
-        language=user.language,
         is_active=user.is_active,
         first_name=user.first_name,
         last_name=user.last_name
