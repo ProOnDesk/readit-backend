@@ -31,6 +31,9 @@ async def register_user(
     db: Session = Depends(get_db)
 ) -> DefaultResponseModel:
     
+    if len(body.password) < 8:
+        raise HTTPException(status_code=400, detail="Password is too short")
+    
     try:
         create_user(db, UserCreate(
             email=body.email,
@@ -83,7 +86,7 @@ async def send_email_with_key_to_change_password(
     db: Session = Depends(get_db)
 ) -> DefaultResponseModel:
     if not (user := get_user_by_email(db, body.email)):
-        raise HTTPException(status=404, detail='User with this email doesn\'t exist')
+        raise HTTPException(status_code=404, detail='User with this email doesn\'t exist')
     
     await send_email(
         'Password reset.',
@@ -109,10 +112,10 @@ async def change_password(
 ) -> DefaultResponseModel:
     decoded_email = jwt.decode(key, SECRET_KEY, algorithms=[ENCRYPTION_ALGORITHM])
     if not (current_user := get_user_by_email(db, decoded_email.get("email"))):
-        raise HTTPException(status_code=404)
+        raise HTTPException(status_code=404, detail="User with this email doesn't exist")
     
     if decoded_email.get('hashed_password') != current_user.hashed_password:
-        raise HTTPException(status=404, detail='This key doesn\'t work anymore')
+        raise HTTPException(status_code=404, detail='This key doesn\'t work anymore')
 
     current_user.hashed_password = hash_password(body.password)
     db.commit()
