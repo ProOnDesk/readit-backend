@@ -34,6 +34,9 @@ async def register_user(
     if len(body.password) < 8:
         raise HTTPException(status_code=400, detail="Password is too short")
     
+    if not get_user_by_email(db, body.email):
+        raise HTTPException(status_code=400, detail="This email is already used")
+    
     try:
         create_user(db, UserCreate(
             email=body.email,
@@ -43,7 +46,7 @@ async def register_user(
             last_name=body.lastname
         ))
     except Exception as e:
-        raise HTTPException(status_code=400, detail="This email is already used")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Error while creating the user")
 
     await send_email(
         'Email confirmation.',
