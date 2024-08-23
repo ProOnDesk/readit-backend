@@ -6,7 +6,7 @@ CORS_ORIGINS = [
 ]
 
 IP_ADDRESS = "http://127.0.0.1:8000/"
-IMAGE_DIR = "media/uploads/user/"
+IMAGE_DIR = "app/media/uploads/user/"
 
 ACCESS_TOKEN_EXPIRE_TIME = 60 # in minutes
 REFRESH_TOKEN_EXPIRE_TIME = 7
