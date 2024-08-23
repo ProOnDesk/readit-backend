@@ -40,8 +40,7 @@ async def register_user(
             last_name=body.lastname
         ))
     except Exception as e:
-        print(e)
-        raise HTTPException(status_code=400)
+        raise HTTPException(status_code=400, detail="This email is already used")
 
     await send_email(
         'Email confirmation.',
