@@ -31,6 +31,9 @@ async def register_user(
     db: Session = Depends(get_db)
 ) -> DefaultResponseModel:
     
+    if len(body.password) < 8:
+        raise HTTPException(status_code=400, detail="Password is too short")
+    
     try:
         create_user(db, UserCreate(
             email=body.email,
@@ -40,14 +43,13 @@ async def register_user(
             last_name=body.lastname
         ))
     except Exception as e:
-        print(e)
-        raise HTTPException(status_code=400)
+        raise HTTPException(status_code=400, detail="This email is already used")
 
     await send_email(
         'Email confirmation.',
         body.email,
         {
-            'link': f'http://127.0.0.1:3000/email-confirmation/?key={jwt.encode({'email': body.email}, SECRET_KEY, algorithm=ENCRYPTION_ALGORITHM)}'
+            'link': f"http://127.0.0.1:3000/email-confirmation/?key={jwt.encode({'email': body.email}, SECRET_KEY, algorithm=ENCRYPTION_ALGORITHM)}"
         }, 
         'email_confirmation.html'
     )
@@ -84,13 +86,13 @@ async def send_email_with_key_to_change_password(
     db: Session = Depends(get_db)
 ) -> DefaultResponseModel:
     if not (user := get_user_by_email(db, body.email)):
-        raise HTTPException(status=404, detail='User with this email doesn\'t exist')
+        raise HTTPException(status_code=404, detail='User with this email doesn\'t exist')
     
     await send_email(
         'Password reset.',
         body.email,
         {
-            'link': f'http://127.0.0.1:3000/password-reset/?key={jwt.encode({'email': body.email, 'hashed_password': user.hashed_password}, SECRET_KEY, algorithm=ENCRYPTION_ALGORITHM)}'
+            'link': f"http://127.0.0.1:3000/password-reset/?key={jwt.encode({'email': body.email, 'hashed_password': user.hashed_password}, SECRET_KEY, algorithm=ENCRYPTION_ALGORITHM)}"
         }, 
         'password_reset.html'
     )
@@ -109,11 +111,15 @@ async def change_password(
     db: Session = Depends(get_db)
 ) -> DefaultResponseModel:
     decoded_email = jwt.decode(key, SECRET_KEY, algorithms=[ENCRYPTION_ALGORITHM])
+
+    if len(body.password) < 8:
+        raise HTTPException(status_code=400, detail="Password is too short")
+
     if not (current_user := get_user_by_email(db, decoded_email.get("email"))):
-        raise HTTPException(status_code=404)
+        raise HTTPException(status_code=404, detail="User with this email doesn't exist")
     
     if decoded_email.get('hashed_password') != current_user.hashed_password:
-        raise HTTPException(status=404, detail='This key doesn\'t work anymore')
+        raise HTTPException(status_code=404, detail='This key doesn\'t work anymore')
 
     current_user.hashed_password = hash_password(body.password)
     db.commit()
