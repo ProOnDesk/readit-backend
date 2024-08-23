@@ -13,7 +13,7 @@ services:
     volumes:
       - ./app:/app/app
     command: >
-      sh -c "fastapi dev app/main.py --proxy-headers --host 0.0.0.0 --port 8000"
+      sh -c "alembic upgrade head && fastapi dev app/main.py --proxy-headers --host 0.0.0.0 --port 8000 --reload"
     env_file:
       - ./.env
 
