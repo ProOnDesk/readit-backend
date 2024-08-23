@@ -10,6 +10,7 @@ from app.domain.user.schemas import UserCreate, UserProfile, Follower
 from pydantic import BaseModel
 from uuid import uuid4
 import jwt
+import re
 
 router = APIRouter(
     prefix="/user",
@@ -33,6 +34,15 @@ async def register_user(
     
     if len(body.password) < 8:
         raise HTTPException(status_code=400, detail="Password is too short")
+    
+     # Check if the password contains at least one capital letter, one number, and one special character
+    if not re.search(r'[A-Z]', body.password):
+        raise HTTPException(status_code=400, detail="Password must contain at least one uppercase letter")
+    if not re.search(r'[0-9]', body.password):
+        raise HTTPException(status_code=400, detail="Password must contain at least one number")
+    if not re.search(r'[\W_]', body.password):  # This checks for any non-alphanumeric character (special characters)
+        raise HTTPException(status_code=400, detail="Password must contain at least one special character")
+
     
     if not get_user_by_email(db, body.email):
         raise HTTPException(status_code=400, detail="This email is already used")
@@ -117,6 +127,15 @@ async def change_password(
 
     if len(body.password) < 8:
         raise HTTPException(status_code=400, detail="Password is too short")
+    
+     # Check if the password contains at least one capital letter, one number, and one special character
+    if not re.search(r'[A-Z]', body.password):
+        raise HTTPException(status_code=400, detail="Password must contain at least one uppercase letter")
+    if not re.search(r'[0-9]', body.password):
+        raise HTTPException(status_code=400, detail="Password must contain at least one number")
+    if not re.search(r'[\W_]', body.password):  # This checks for any non-alphanumeric character (special characters)
+        raise HTTPException(status_code=400, detail="Password must contain at least one special character")
+
 
     if not (current_user := get_user_by_email(db, decoded_email.get("email"))):
         raise HTTPException(status_code=404, detail="User with this email doesn't exist")
