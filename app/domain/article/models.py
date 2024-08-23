@@ -1,7 +1,7 @@
 from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, Text, Table, event, UniqueConstraint, func
 from sqlalchemy.orm import relationship, Session
 from sqlalchemy.types import DateTime
-from ...database import Base
+from ..model_base import Base
 import datetime
 import re
 

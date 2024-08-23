@@ -20,5 +20,3 @@ while connection_engine is None:
 engine = connection_engine
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-
-Base = declarative_base()

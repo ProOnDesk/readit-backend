@@ -1,14 +1,14 @@
 from sqlalchemy import Boolean, Column, ForeignKey, Integer, String
 from sqlalchemy.orm import relationship
 from app.config import IP_ADDRESS
-from ...database import Base
+from ..model_base import Base
 
 
 class User(Base):
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    first_name = Column(String(31), unique=False)
+    first_name = Column(String(31), unique=False, default='maciek')
     last_name = Column(String(31), unique=False)
     email = Column(String(63), unique=True)
     sex = Column(String(31), unique=False)
