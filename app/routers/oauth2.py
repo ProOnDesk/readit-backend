@@ -31,14 +31,14 @@ async def refresh_for_access_token(
     
     response.set_cookie(
         key="access_token", 
-        value=f'{create_token(
+        value=f"""{create_token(
             {
                 "user_id": refresh_token.user_id,
                 "token_type": "Bearer",
                 "type": "access",
                 "expiration_date": (datetime.datetime.now(datetime.UTC) + datetime.timedelta(minutes=ACCESS_TOKEN_EXPIRE_TIME)).isoformat()
             }
-        )}',
+        )}""",
         max_age=ACCESS_TOKEN_EXPIRE_TIME*60, 
         httponly=True
     )

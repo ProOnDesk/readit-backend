@@ -42,7 +42,6 @@ class Article(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     title = Column(String(255), nullable=False)
     slug = Column(String(255), nullable=True, unique=True)
-    content = Column(Text, nullable=False)
     summary = Column(String(1000), nullable=True)
     author_id = Column(Integer, ForeignKey('users.id'), nullable=False)
     created_at = Column(DateTime, server_default=func.timezone('UTC', func.now()))
@@ -55,9 +54,21 @@ class Article(Base):
     comments = relationship('ArticleComment', back_populates='article', cascade='all, delete-orphan')
     
     wish_list = relationship('WishList', back_populates='article')
+    
+    content_elements = relationship('ArticleContentElement', back_populates='article')
         
     def __repr__(self):
         return f"<Article(id={self.id}, title={self.title}, author={self.author}, created_at={self.created_at})>"
+
+class ArticleContentElement(Base):
+    __tablename__ = "article_content_elements"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    article_id = Column(Integer, ForeignKey('articles.id'), nullable=False)
+    content_type = Column(String(50), nullable=False)
+    content = Column(Text, nullable=False)
+    order = Column(Integer, nullable=False)
+    
+    article = relationship('Article', back_populates='content_elements')
 
 class ArticleComment(Base):
     __tablename__ = "article_comment"

@@ -44,7 +44,7 @@ async def register_user(
         raise HTTPException(status_code=400, detail="Password must contain at least one special character")
 
     
-    if not get_user_by_email(db, body.email):
+    if get_user_by_email(db, body.email):
         raise HTTPException(status_code=400, detail="This email is already used")
     
     try:
