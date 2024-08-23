@@ -111,6 +111,10 @@ async def change_password(
     db: Session = Depends(get_db)
 ) -> DefaultResponseModel:
     decoded_email = jwt.decode(key, SECRET_KEY, algorithms=[ENCRYPTION_ALGORITHM])
+
+    if len(body.password) < 8:
+        raise HTTPException(status_code=400, detail="Password is too short")
+
     if not (current_user := get_user_by_email(db, decoded_email.get("email"))):
         raise HTTPException(status_code=404, detail="User with this email doesn't exist")
     
