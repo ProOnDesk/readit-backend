@@ -35,6 +35,9 @@ async def register_user(
     if len(body.password) < 8:
         raise HTTPException(status_code=400, detail="Password is too short")
     
+    if not get_user_by_email(db, body.email):
+        raise HTTPException(status_code=400, detail="This email is already used")
+    
      # Check if the password contains at least one capital letter, one number, and one special character
     if not re.search(r'[A-Z]', body.password):
         raise HTTPException(status_code=400, detail="Password must contain at least one uppercase letter")
@@ -43,10 +46,6 @@ async def register_user(
     if not re.search(r'[\W_]', body.password):  # This checks for any non-alphanumeric character (special characters)
         raise HTTPException(status_code=400, detail="Password must contain at least one special character")
 
-    
-    if not get_user_by_email(db, body.email):
-        raise HTTPException(status_code=400, detail="This email is already used")
-    
     try:
         create_user(db, UserCreate(
             email=body.email,
