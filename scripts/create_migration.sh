@@ -7,6 +7,6 @@ fi
 
 migration=$1
 
-docker-compose run --rm web sh -c "alembic revision -m \"$migration\" --autogenerate && alembic upgrade head"
+docker-compose run --rm web sh -c "alembic revision -m \"$migration\" --autogenerate"
 
 echo "Migration '$migration' has been created."

@@ -1,7 +1,7 @@
 from typing import Annotated
 from fastapi import APIRouter, Depends, Response, status
 from ..dependencies import validate_credentials, Tokens, EncodedTokens, retrieve_refresh_token, authenticate, create_token, RefreshToken
-from app.config import ACCESS_TOKEN_EXPIRE_TIME
+from app.config import ACCESS_TOKEN_EXPIRE_TIME, REFRESH_TOKEN_EXPIRE_TIME
 import datetime
 
 router = APIRouter(
@@ -16,8 +16,8 @@ async def login_for_access_token(
     tokens: EncodedTokens = Depends(validate_credentials)
 ):
 
-    response.set_cookie(key="access_token", value=f'{tokens.access_token}', max_age=ACCESS_TOKEN_EXPIRE_TIME*60, httponly=True)
-    response.set_cookie(key="refresh_token", value=f'{tokens.refresh_token}', max_age=ACCESS_TOKEN_EXPIRE_TIME*60, httponly=True)
+    response.set_cookie(key="access_token", value=f'{tokens.access_token}', max_age=ACCESS_TOKEN_EXPIRE_TIME * 60, httponly=True)
+    response.set_cookie(key="refresh_token", value=f'{tokens.refresh_token}', max_age=REFRESH_TOKEN_EXPIRE_TIME * 60 * 24, httponly=True)
 
     return {
         "message": "Authenticated"
@@ -46,7 +46,18 @@ async def refresh_for_access_token(
     return {
         "message": "Refreshed"
     }
+@router.get("/logout")
+async def logout(
+    response: Response,
+):
 
+    response.delete_cookie(key="access_token")
+    response.delete_cookie(key="refresh_token")
+
+    return {
+        "message": "Logout"
+    }
+    
 ### Returns body with real tokens
 @router.get("/cookies")
 async def get_cookies_testing_request(

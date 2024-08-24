@@ -1,25 +1,87 @@
-from fastapi import APIRouter, Depends, HTTPException, status, File, UploadFile
+from fastapi import APIRouter, Depends, HTTPException, status, File, UploadFile, Form
 from sqlalchemy.orm import Session
 from app.domain.article import schemas, service, models
 from app.dependencies import get_db, authenticate, Tokens, DefaultResponseModel
-from typing import Annotated, Union, Literal
+from typing import Annotated, Union, Literal, Optional
 from fastapi_pagination import Page, paginate
 from app.config import IMAGE_DIR, IP_ADDRESS, IMAGE_URL
 from uuid import uuid4
+import json
+from pydantic import ValidationError
 
 router = APIRouter(
     prefix='/articles',
     tags=['Articles']
 )
-
+def check_file_if_image(file: UploadFile) -> None:
+    if file.filename.split(".")[-1] not in ['img', 'png', 'jpg', 'jpeg']:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail='Only files with formats img, png, jpg, and jpeg are accepted'
+        )
+        
 @router.post('/', status_code=status.HTTP_201_CREATED)
-def create_article(article: schemas.CreateArticle, user_id: Annotated[int, Depends(authenticate)], db: Session = Depends(get_db )
+async def create_article(
+    user_id: Annotated[int, Depends(authenticate)],
+    title_image: Annotated[UploadFile, File(...)],
+    article: Annotated[Union[schemas.CreateArticle, str], Form(...)],
+    db: Annotated[Session, Depends(get_db)],
+    images_for_content_type_image: list[UploadFile] = None
 ) -> schemas.ResponseArticleDetail:
-    db_article = service.create_article(article=article, db=db, user_id=user_id)
-    return db_article
+    try:
+        article = json.loads(article)
+        
+        check_file_if_image(title_image)
+        
+        title_image.filename = f'{uuid4()}.{title_image.filename.split(".")[-1]}'
+        contents = await title_image.read()
+        with open(f"{IMAGE_DIR}{title_image.filename}", "wb") as f:
+            f.write(contents)
+        title_image_url = f'{IMAGE_URL}{title_image.filename}'
+        
+        image_content_elements = [ce for ce in article['content_elements'] if ce['content_type'] == 'image']
+
+
+        if len(images_for_content_type_image) != len(image_content_elements):
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail='Number of images does not match number of content elements'
+                )
+        if images_for_content_type_image:
+            for image, content_element in zip(images_for_content_type_image, image_content_elements):
+                check_file_if_image(image)
+                image.filename = f'{uuid4()}.{image.filename.split(".")[-1]}'
+                contents = await image.read()
+                with open(f"{IMAGE_DIR}{image.filename}", "wb") as f:
+                    f.write(contents)
+                content_element['content'] = f'{IP_ADDRESS}{IMAGE_URL}{image.filename}'
+
+            
+        db_article = service.create_article(db=db, article=article, user_id=user_id, title_image=title_image_url)
+        
+        return db_article
+    
+    except json.JSONDecodeError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f'Invalid JSON format: {str(e)}'
+        )
+    except ValidationError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f'Validation error: {str(e)}'
+        )
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"An unexpected error occurred: {str(e)}"
+        )
 
 @router.get('/all', status_code=status.HTTP_200_OK)
 async def get_articles(sort_order: Union[None, Literal['asc', 'desc']] = None, db: Session = Depends(get_db)) -> Page[schemas.ResponseArticle]:
+    
     db_articles = service.get_articles(db=db, sort_order=sort_order)
     return paginate(db_articles)
 
@@ -40,10 +102,10 @@ async def stores_images_for_article(files: list[UploadFile], user_id: Annotated[
         
         file_urls.append(f"{IP_ADDRESS}{IMAGE_URL}{file.filename}")
 
-    return {"file_urls": file_urls}
+    return await {"file_urls": file_urls}
 
 @router.get('/{article_id}', status_code=status.HTTP_200_OK)
-def get_article_by_id(article_id: int, db: Session = Depends(get_db))-> schemas.ResponseArticleDetail:
+async def get_article_by_id(article_id: int, db: Session = Depends(get_db))-> schemas.ResponseArticleDetail:
     db_article = service.get_article_by_id(db=db, article_id=article_id)
     if db_article is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Article does not exist")
@@ -59,7 +121,7 @@ def get_article_by_id(article_id: int, db: Session = Depends(get_db))-> schemas.
 
 
 @router.delete('/{article_id}', status_code=status.HTTP_200_OK)
-def delete_article_by_id(article_id: int, user_id: Annotated[int, Depends(authenticate)], db: Session = Depends(get_db)):
+async def delete_article_by_id(article_id: int, user_id: Annotated[int, Depends(authenticate)], db: Session = Depends(get_db)):
     db_article = service.get_article_by_id(db=db, article_id=article_id)
     if db_article is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Article does not exist")
@@ -71,12 +133,12 @@ def delete_article_by_id(article_id: int, user_id: Annotated[int, Depends(authen
     raise HTTPException(status_code=status.HTTP_200_OK, detail="Deleted succesfuly")
 
 @router.post('/comment/{article_id}', status_code=status.HTTP_201_CREATED)
-def create_comment_by_article_id(article_comment: schemas.CreateCommentArticle, article_id: int, user_id: Annotated[int, Depends(authenticate)], db: Session = Depends(get_db)) -> schemas.ResponseCommentArticle:
+async def create_comment_by_article_id(article_comment: schemas.CreateCommentArticle, article_id: int, user_id: Annotated[int, Depends(authenticate)], db: Session = Depends(get_db)) -> schemas.ResponseCommentArticle:
     db_article = service.create_article_comment(db=db, comment=article_comment,article_id=article_id, user_id=user_id)
     return db_article
 
 @router.delete('/comment/{article_id}', status_code=status.HTTP_200_OK)
-def delete_comment_by_article_id(article_id: int, user_id: Annotated[int, Depends(authenticate)], db: Session = Depends(get_db)):
+async def delete_comment_by_article_id(article_id: int, user_id: Annotated[int, Depends(authenticate)], db: Session = Depends(get_db)):
     article_comment = service.get_article_comment_by_user_id_and_article_id(db=db, user_id=user_id, article_id=article_id)
     if article_comment is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Comment for this user and article does not exist")
@@ -88,22 +150,22 @@ def delete_comment_by_article_id(article_id: int, user_id: Annotated[int, Depend
     raise HTTPException(status_code=status.HTTP_200_OK, detail="Deleted succesfuly")
 
 @router.get('/comment/all/{article_id}', status_code=status.HTTP_200_OK)
-def get_comments_by_article_id(article_id: int, sort_order: Union[None, Literal['asc', 'desc']] = None, db: Session = Depends(get_db)) -> Page[schemas.ResponseCommentArticle]:
+async def get_comments_by_article_id(article_id: int, sort_order: Union[None, Literal['asc', 'desc']] = None, db: Session = Depends(get_db)) -> Page[schemas.ResponseCommentArticle]:
     db_comments = service.get_article_comments_by_article_id(db=db, article_id=article_id, sort_order=sort_order)
     return paginate(db_comments)
 
 @router.post('/wish-list/add/{article_id}', status_code=status.HTTP_200_OK)
-def add_article_to_wish_list(article_id: int, user_id: Annotated[int, Depends(authenticate)], db: Session = Depends(get_db)) -> schemas.ResponseWishList:
+async def add_article_to_wish_list(article_id: int, user_id: Annotated[int, Depends(authenticate)], db: Session = Depends(get_db)) -> schemas.ResponseWishList:
     db_wish_list = service.create_wish_list(db=db, article_id=article_id, user_id=user_id)
     return db_wish_list
 
 @router.get('/wish-list/all/me', status_code=status.HTTP_200_OK)
-def get_articles_from_wish_list(user_id: Annotated[int, Depends(authenticate)], sort_order: Union[None, Literal['asc', 'desc']] = None, db: Session = Depends(get_db)) ->Page[schemas.ResponseWishList]:
+async def get_articles_from_wish_list(user_id: Annotated[int, Depends(authenticate)], sort_order: Union[None, Literal['asc', 'desc']] = None, db: Session = Depends(get_db)) ->Page[schemas.ResponseWishList]:
     db_wish_list = service.get_wish_list_by_user_id(db=db, user_id=user_id, sort_order=sort_order)
     return paginate(db_wish_list)
 
 @router.delete('/wish-list/delete/{article_id}', status_code=status.HTTP_200_OK)
-def delete_article_from_wish_list(article_id:int, user_id: Annotated[int, Depends(authenticate)], db: Session = Depends(get_db)):
+async def delete_article_from_wish_list(article_id:int, user_id: Annotated[int, Depends(authenticate)], db: Session = Depends(get_db)):
     db_article = db.query(models.Article).filter(models.Article.id == article_id).first()
     if db_article is None:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Article with this id does not exist")

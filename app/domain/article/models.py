@@ -4,7 +4,7 @@ from sqlalchemy.types import DateTime
 from ..model_base import Base
 import datetime
 import re
-
+from app.config import IP_ADDRESS
 def generate_slug(title: str) -> str:
     return re.sub(r'\s+', '-', title).lower()
 
@@ -42,10 +42,11 @@ class Article(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     title = Column(String(255), nullable=False)
     slug = Column(String(255), nullable=True, unique=True)
-    summary = Column(String(1000), nullable=True)
+    summary = Column(String(1000), nullable=False)
     author_id = Column(Integer, ForeignKey('users.id'), nullable=False)
     created_at = Column(DateTime, server_default=func.timezone('UTC', func.now()))
     view_count = Column(Integer, default=0)
+    title_image = Column(String(255), nullable=False)
 
     tags = relationship('Tag', secondary='article_tag', back_populates='articles')
     
@@ -59,7 +60,11 @@ class Article(Base):
         
     def __repr__(self):
         return f"<Article(id={self.id}, title={self.title}, author={self.author}, created_at={self.created_at})>"
-
+    
+    @property
+    def title_image_url(self):
+        return IP_ADDRESS +self.title_image
+    
 class ArticleContentElement(Base):
     __tablename__ = "article_content_elements"
     id = Column(Integer, primary_key=True, autoincrement=True)

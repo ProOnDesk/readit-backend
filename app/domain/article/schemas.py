@@ -1,6 +1,6 @@
 from pydantic import BaseModel, root_validator
 from datetime import datetime
-from typing import Literal
+from typing import Literal, Union, Optional
 
 # USER
 class UserInfo(BaseModel):
@@ -29,7 +29,7 @@ class ResponseArticleContentElement(BaseArticleContentElement):
 class BaseArticle(BaseModel):
     title: str
     summary: str
-    tags: list[BaseTag]
+    tags: Optional[list[BaseTag]] = None
     
 class CreateArticle(BaseArticle):
     content_elements: list[BaseArticleContentElement]
@@ -56,6 +56,7 @@ class ResponseArticle(BaseArticle):
     slug: str
     created_at: datetime
     view_count: int
+    title_image_url: str
 
 class ResponseArticleDetail(ResponseArticle):
     content_elements: list[ResponseArticleContentElement]

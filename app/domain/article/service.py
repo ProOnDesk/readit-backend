@@ -18,12 +18,17 @@ def get_article_by_slug(db: Session, slug: str):
 
 def get_article_by_id(db: Session, article_id: int):
     return db.query(models.Article).filter(models.Article.id == article_id).first()
-
+  
 def get_articles_by_user_id(db: Session, user_id: int):
     return db.query(models.Article).filter(models.Article.author_id == user_id).all()
-
-def create_article(db: Session, article: schemas.CreateArticle, user_id: int, ):
-    article_dict = article.model_dump()
+  
+def create_article(db: Session, article: Union[schemas.CreateArticle, dict], user_id: int, title_image: str):
+    if isinstance(article, schemas.CreateArticle):
+        article_dict = article.model_dump()
+    elif isinstance(article, dict):
+        article_dict = article
+    else:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid article format. Must be either schemas.CreateArticle or dict.")
 
     tag_dicts = article_dict.pop('tags')
     content_elements_dicts = article_dict.pop('content_elements')
@@ -31,13 +36,10 @@ def create_article(db: Session, article: schemas.CreateArticle, user_id: int, ):
     tags = [get_or_create(db, models.Tag, value=tag['value']) for tag in tag_dicts]
     if len(tags) > 3:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Too many tags. Maximum allowed is 3.")
-    
-    db_article = models.Article(**article_dict, author_id=user_id, tags=tags)
-    
+    db_article = models.Article(**article_dict, author_id=user_id, tags=tags, title_image=title_image)
     db_content_elements = [models.ArticleContentElement(article_id=db_article.id, order = order + 1, **content_element) for order, content_element in enumerate(content_elements_dicts, start=0)]
     
     db_article.content_elements = db_content_elements
-    
     db.add(db_article)
     db.commit()
     db.refresh(db_article)
