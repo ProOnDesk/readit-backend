@@ -1,4 +1,5 @@
 from pydantic import BaseModel
+from app.domain.article.schemas import ResponseArticle
 
 class UserBase(BaseModel):
     email: str
@@ -18,6 +19,8 @@ class UserProfile(UserBase):
     avatar: str
     short_description: str
     follower_count: int
+    article_count: int = 0
+    articles: list[ResponseArticle] | None = None
 
     class Config:
         from_attributes = True

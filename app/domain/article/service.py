@@ -19,6 +19,9 @@ def get_article_by_slug(db: Session, slug: str):
 def get_article_by_id(db: Session, article_id: int):
     return db.query(models.Article).filter(models.Article.id == article_id).first()
 
+def get_articles_by_user_id(db: Session, user_id: int):
+    return db.query(models.Article).filter(models.Article.author_id == user_id).all()
+
 def create_article(db: Session, article: schemas.CreateArticle, user_id: int, ):
     article_dict = article.model_dump()
 
