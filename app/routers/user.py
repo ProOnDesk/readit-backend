@@ -273,7 +273,9 @@ async def modify_user(
         "short_description": user.short_description,
         "follower_count": user.follower_count,
         "first_name": user.first_name,
-        "last_name": user.last_name
+        "last_name": user.last_name,
+        "articles": user.articles,
+        "article_count": len(user.articles)
     }
 
 @router.patch("/modify/password", status_code=status.HTTP_200_OK)
@@ -339,7 +341,9 @@ async def modify_avatar(
         "short_description": user.short_description,
         "follower_count": user.follower_count,
         "first_name": user.first_name,
-        "last_name": user.last_name
+        "last_name": user.last_name,
+        "articles": user.articles,
+        "article_count": len(user.articles)
     }
 
 @router.post("/follow/{followed_id}", status_code=status.HTTP_201_CREATED)
