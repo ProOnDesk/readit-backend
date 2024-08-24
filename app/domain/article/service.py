@@ -18,23 +18,28 @@ def get_article_by_slug(db: Session, slug: str):
 
 def get_article_by_id(db: Session, article_id: int):
     return db.query(models.Article).filter(models.Article.id == article_id).first()
-    
 
 def create_article(db: Session, article: schemas.CreateArticle, user_id: int, ):
     article_dict = article.model_dump()
 
     tag_dicts = article_dict.pop('tags')
+    content_elements_dicts = article_dict.pop('content_elements')
+    
     tags = [get_or_create(db, models.Tag, value=tag['value']) for tag in tag_dicts]
     if len(tags) > 3:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Too many tags. Maximum allowed is 3.")
-    article_dict['author_id'] = user_id
-
-    db_article = models.Article(**article_dict, tags=tags)
-
+    
+    db_article = models.Article(**article_dict, author_id=user_id, tags=tags)
+    
+    db_content_elements = [models.ArticleContentElement(article_id=db_article.id, order = order + 1, **content_element) for order, content_element in enumerate(content_elements_dicts, start=0)]
+    
+    db_article.content_elements = db_content_elements
+    
     db.add(db_article)
     db.commit()
     db.refresh(db_article)
-
+    db_article.content_elements = sorted(db_article.content_elements, key=lambda e: e.order)
+    
     return db_article
 
 def delete_article(db: Session, db_article: models.Article):

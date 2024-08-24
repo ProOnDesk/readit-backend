@@ -364,7 +364,7 @@ async def send_email(
     subject: str, email_to: str, body: dict[str, str], template: str
 ) -> None:
 
-    with open(f'./templates/email/{template}') as file_:
+    with open(f'app/templates/email/{template}') as file_:
         template = Template(file_.read())
         rendered_template = template.render(link=body.get('link'))
     

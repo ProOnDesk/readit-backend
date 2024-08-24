@@ -1,26 +1,40 @@
 from pydantic import BaseModel, root_validator
 from datetime import datetime
+from typing import Literal
 
+# USER
 class UserInfo(BaseModel):
     id: int
     first_name: str
     last_name: str
     avatar_url: str
-    
+
+# TAG    
 class BaseTag(BaseModel):
     value: str
 
 class ResponseTag(BaseTag):
     id: int
     
+# ARTICLE CONTENT ELELMENT
+
+class BaseArticleContentElement(BaseModel):
+    content_type: Literal['title', 'image', 'text']
+    content: str
+    
+class ResponseArticleContentElement(BaseArticleContentElement):
+    order: int
+     
+# ARTICLE
 class BaseArticle(BaseModel):
     title: str
     summary: str
     tags: list[BaseTag]
     
 class CreateArticle(BaseArticle):
-    content: str
+    content_elements: list[BaseArticleContentElement]
     
+# COMMENT ARTICLE   
 class BaseCommentArticle(BaseModel):
     content: str
     rating: int
@@ -35,6 +49,7 @@ class ResponseCommentArticle(BaseCommentArticle):
     article_id: int
     created_at: datetime
     
+# ARTICLE   
 class ResponseArticle(BaseArticle):
     id: int
     author: UserInfo
@@ -43,8 +58,9 @@ class ResponseArticle(BaseArticle):
     view_count: int
 
 class ResponseArticleDetail(ResponseArticle):
-    content: str
-    
+    content_elements: list[ResponseArticleContentElement]
+
+# WISH LIST
 class BaseWishList(BaseModel):
     article: ResponseArticle
     user_id: int
@@ -52,4 +68,3 @@ class BaseWishList(BaseModel):
 class ResponseWishList(BaseWishList):
     id: int
     created_at: datetime
-    

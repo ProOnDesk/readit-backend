@@ -1,9 +1,11 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, File, UploadFile
 from sqlalchemy.orm import Session
 from app.domain.article import schemas, service, models
 from app.dependencies import get_db, authenticate, Tokens, DefaultResponseModel
 from typing import Annotated, Union, Literal
 from fastapi_pagination import Page, paginate
+from app.config import IMAGE_DIR, IP_ADDRESS, IMAGE_URL
+from uuid import uuid4
 
 router = APIRouter(
     prefix='/articles',
@@ -12,14 +14,33 @@ router = APIRouter(
 
 @router.post('/', status_code=status.HTTP_201_CREATED)
 def create_article(article: schemas.CreateArticle, user_id: Annotated[int, Depends(authenticate)], db: Session = Depends(get_db )
-):
+) -> schemas.ResponseArticleDetail:
     db_article = service.create_article(article=article, db=db, user_id=user_id)
     return db_article
 
 @router.get('/all', status_code=status.HTTP_200_OK)
-def get_articles(sort_order: Union[None, Literal['asc', 'desc']] = None, db: Session = Depends(get_db)) -> Page[schemas.ResponseArticle]:
+async def get_articles(sort_order: Union[None, Literal['asc', 'desc']] = None, db: Session = Depends(get_db)) -> Page[schemas.ResponseArticle]:
     db_articles = service.get_articles(db=db, sort_order=sort_order)
     return paginate(db_articles)
+
+@router.post('/files')
+async def stores_images_for_article(files: list[UploadFile], user_id: Annotated[int, Depends(authenticate)]):
+    file_urls = []
+    for file in files:  
+        if file.filename.split(".")[-1] not in ['img', 'png', 'jpg', 'jpeg']:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail='File with this format isn\'t accepted'
+            )  
+        file.filename = f'{uuid4()}.{file.filename.split(".")[-1]}'
+        contents = await file.read()
+        
+        with open(f"{IMAGE_DIR}{file.filename}", "wb") as f:
+            f.write(contents)
+        
+        file_urls.append(f"{IP_ADDRESS}{IMAGE_URL}{file.filename}")
+
+    return {"file_urls": file_urls}
 
 @router.get('/{article_id}', status_code=status.HTTP_200_OK)
 def get_article_by_id(article_id: int, db: Session = Depends(get_db))-> schemas.ResponseArticleDetail:
