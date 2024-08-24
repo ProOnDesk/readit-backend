@@ -5,7 +5,12 @@ from app.dependencies import send_email, get_db, DefaultResponseModel, authentic
 from app.config import SECRET_KEY, ENCRYPTION_ALGORITHM, IP_ADDRESS, IMAGE_DIR, IMAGE_URL
 from app.domain.user.service import ( create_user, hash_password, 
     get_user_by_email, get_user, create_follow,
-    get_follow_by_both_ids, delete_follow, get_follows_amount, verify_password )
+    get_follow_by_both_ids, delete_follow, get_follows_amount, verify_password
+)
+from app.domain.article.service import (
+    get_articles_by_user_id
+)
+from app.domain.article.schemas import ResponseArticle
 from app.domain.user.schemas import UserCreate, UserProfile, Follower
 from pydantic import BaseModel
 from uuid import uuid4
@@ -35,6 +40,9 @@ async def register_user(
     if len(body.password) < 8:
         raise HTTPException(status_code=400, detail="Password is too short")
     
+    if get_user_by_email(db, body.email):
+        raise HTTPException(status_code=400, detail="This email is already used")
+    
      # Check if the password contains at least one capital letter, one number, and one special character
     if not re.search(r'[A-Z]', body.password):
         raise HTTPException(status_code=400, detail="Password must contain at least one uppercase letter")
@@ -43,10 +51,6 @@ async def register_user(
     if not re.search(r'[\W_]', body.password):  # This checks for any non-alphanumeric character (special characters)
         raise HTTPException(status_code=400, detail="Password must contain at least one special character")
 
-    
-    if get_user_by_email(db, body.email):
-        raise HTTPException(status_code=400, detail="This email is already used")
-    
     try:
         create_user(db, UserCreate(
             email=body.email,
@@ -172,7 +176,9 @@ async def get_user_by_access_token(
         "short_description": user.short_description,
         "follower_count": user.follower_count,
         "first_name": user.first_name,
-        "last_name": user.last_name
+        "last_name": user.last_name,
+        "articles": user.articles,
+        "article_count": len(user.articles)
     }
 
 class UserProfileById(BaseModel):
@@ -183,6 +189,8 @@ class UserProfileById(BaseModel):
     followers_count: int
     first_name: str
     last_name: str
+    article_count: int = 0
+    articles: list[ResponseArticle] | None = None
 
 @router.get("/get/{user_id}", status_code=status.HTTP_200_OK)
 async def get_user_by_user_id(
@@ -198,15 +206,23 @@ async def get_user_by_user_id(
     user.follower_count = get_follows_amount(db, user.id)
     db.commit()
 
-    return {
+    output = {
         "id": user.id,
         "sex": user.sex,
         "avatar": IP_ADDRESS + user.avatar,
         "short_description": user.short_description,
         "follower_count": user.follower_count,
         "first_name": user.first_name,
-        "last_name": user.last_name
+        "last_name": user.last_name,
+        "articles": user.articles,
+        "article_count": len(user.articles)
     }
+
+    # if (articles := get_articles_by_user_id(db, user.id)):
+    #     output.update({"articles": []})
+    #     print(articles)
+
+    return output
 
 class PasswordChangeModel(BaseModel):
     old_password: str
@@ -257,7 +273,9 @@ async def modify_user(
         "short_description": user.short_description,
         "follower_count": user.follower_count,
         "first_name": user.first_name,
-        "last_name": user.last_name
+        "last_name": user.last_name,
+        "articles": user.articles,
+        "article_count": len(user.articles)
     }
 
 @router.patch("/modify/password", status_code=status.HTTP_200_OK)
@@ -323,7 +341,9 @@ async def modify_avatar(
         "short_description": user.short_description,
         "follower_count": user.follower_count,
         "first_name": user.first_name,
-        "last_name": user.last_name
+        "last_name": user.last_name,
+        "articles": user.articles,
+        "article_count": len(user.articles)
     }
 
 @router.post("/follow/{followed_id}", status_code=status.HTTP_201_CREATED)
