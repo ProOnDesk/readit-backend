@@ -2,7 +2,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Response, Form, HTTPException, Path, Body, Query, status, File, UploadFile
 from sqlalchemy.orm import Session
 from app.dependencies import send_email, get_db, DefaultResponseModel, authenticate
-from app.config import SECRET_KEY, ENCRYPTION_ALGORITHM, IP_ADDRESS, IMAGE_DIR
+from app.config import SECRET_KEY, ENCRYPTION_ALGORITHM, IP_ADDRESS, IMAGE_DIR, IMAGE_URL
 from app.domain.user.service import ( create_user, hash_password, 
     get_user_by_email, get_user, create_follow,
     get_follow_by_both_ids, delete_follow, get_follows_amount, verify_password )
@@ -312,7 +312,7 @@ async def modify_avatar(
     with open(f"{IMAGE_DIR}{file.filename}", "wb") as f:
         f.write(contents)
     
-    user.avatar = f"{IMAGE_DIR}{file.filename}"
+    user.avatar = f"{IMAGE_URL}{file.filename}"
     db.commit()
     
     return {
