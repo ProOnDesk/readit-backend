@@ -40,11 +40,15 @@ class ArticleCommentView(ModelView, model=ArticleComment):
         'article_id',
         'content',
         'created_at'
+        'rating',
     ]
     form_columns = [
         'author_id', 
         'article_id',
-        'content'
+        'content',
+        'author',
+        'article',
+        'rating'
     ]
 
 class WishListView(ModelView, model=WishList):

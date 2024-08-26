@@ -77,6 +77,8 @@ async def create_article(
 
             
         db_article = service.create_article(db=db, article=article, user_id=user_id, title_image=title_image_url)
+        db_article.calculate_rating(db=db)
+
         
         return db_article
     
@@ -102,6 +104,7 @@ async def create_article(
 async def get_articles(sort_order: Union[None, Literal['asc', 'desc']] = None, db: Session = Depends(get_db)) -> Page[schemas.ResponseArticle]:
     
     db_articles = service.get_articles(db=db, sort_order=sort_order)
+    [article.calculate_rating(db=db) for article in db_articles]
     return paginate(db_articles)
 
 
@@ -119,6 +122,7 @@ async def get_detail_article_by_id(article_id: int, user_id: Annotated[int, Depe
     db.add(db_article)
     db.commit()
     db.refresh(db_article)
+    db_article.calculate_rating(db=db)
     
     return db_article
 
@@ -136,7 +140,8 @@ async def get_detail_article_by_slug_title(slug: str, user_id: Annotated[int, De
     db.add(db_article)
     db.commit()
     db.refresh(db_article)
-    
+    db_article.calculate_rating(db=db)
+
     return db_article
 
 @router.get('/id/{article_id}', status_code=status.HTTP_200_OK)
@@ -163,6 +168,8 @@ async def get_article_by_slug_title(slug: str, db: Session = Depends(get_db)) ->
     db.add(db_article)
     db.commit()
     db.refresh(db_article)
+    db_article.calculate_rating(db=db)
+
     
     return db_article
 

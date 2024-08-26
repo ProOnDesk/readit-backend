@@ -5,7 +5,7 @@ from . import models, schemas
 from typing import Union, Literal
 from sqlalchemy.sql import text
 
-def get_articles(db: Session, sort_order: Union[None, Literal['asc', 'desc']] = None):
+def get_articles(db: Session, sort_order: Union[None, Literal['asc', 'desc']] = None) -> list[models.Article]:
     if sort_order == "asc":
         return db.query(models.Article).order_by(models.Article.id.asc()).all()
     elif sort_order == "desc":
@@ -27,7 +27,7 @@ def get_article_by_slug(db: Session, slug_title: str):
     print(article.slug)
     return db.query(models.Article).filter(models.Article.slug == slug_title).first()
 
-def get_article_by_id(db: Session, article_id: int):
+def get_article_by_id(db: Session, article_id: int) -> models.Article:
     return db.query(models.Article).filter(models.Article.id == article_id).first()
 
 def get_articles_by_user_id(db: Session, user_id: int):
@@ -161,3 +161,4 @@ def is_user_author_of_article(db: Session, user_id: int, article_id: int) -> boo
 
 def is_article_free(db: Session, article_id: int) -> bool:
     return db.query(models.Article).filter_by(id=article_id, is_free=True).first() is not None
+
