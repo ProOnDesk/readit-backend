@@ -79,3 +79,47 @@ def create_follow(db: Session, followed_user_id: int, follower_user_id: int):
 def delete_follow(db: Session, follow_id: int):
     db.delete(get_follow(db, follow_id))
     db.commit()
+
+def create_skill(db: Session, skill_name: str):
+    db_skill = models.Skill(
+        skill_name=skill_name
+    )
+    db.add(db_skill)
+    db.commit()
+    db.refresh(db_skill)
+    return db_skill
+
+def get_skill_by_skill_name(db: Session, skill_name: str):
+    return db.query(models.Skill).filter(models.Skill.skill_name==skill_name).first()
+
+def get_skill_by_id(db: Session, skill_id: int):
+    return db.query(models.Skill).filter(models.Skill.id==skill_id).first()
+
+def delete_skill(db: Session, skill_id: int):
+    db.delete(get_skill_by_id(db, skill_id))
+    db.commit()
+
+def create_skill_list_element(db: Session, user_id: int, skill_id: int):
+    db_skill_list_element = models.SkillList(
+        user_id=user_id,
+        skill_id=skill_id
+    )
+    db.add(db_skill_list_element)
+    db.commit()
+    db.refresh(db_skill_list_element)
+    return db_skill_list_element
+
+def get_skill_list_element_by_id(db: Session, skill_list_element_id: int):
+    return db.query(models.SkillList).filter(models.SkillList.id==skill_list_element_id).first()
+
+def delete_skill_list_element(db: Session, skill_list_element_id: int):
+    db.delete(get_skill_list_element_by_id(db, skill_list_element_id))
+    db.commit()
+
+def get_user_skills(db: Session, user_id: int):
+    skills = db.query(models.SkillList).filter(models.SkillList.user_id==user_id).all()
+    skill_list: list[schemas.ReturnSkillListElement] = []
+    for skill in skills:
+        skill_list.append(schemas.ReturnSkillListElement(id=skill.id, skill_name=skill.skill.skill_name))
+
+    return skill_list
