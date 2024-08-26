@@ -186,7 +186,7 @@ class UserProfileById(BaseModel):
     sex: str
     avatar: str
     short_description: str
-    followers_count: int
+    follower_count: int
     first_name: str
     last_name: str
     article_count: int = 0
