@@ -5,8 +5,7 @@ from pydantic import BaseModel
 from app.database import engine, SessionLocal
 from app.config import CORS_ORIGINS, SECRET_KEY, ENCRYPTION_ALGORITHM
 from app.domain.model_base import Base
-from . import routers
-from app.routers import oauth2, user, article
+from app.routers import oauth2, user, article, develop, router
 from app.internal.admin import create_admin
 from fastapi_pagination import add_pagination
 
@@ -38,10 +37,11 @@ def get_application() -> FastAPI:
         allow_headers=["*"],
     )
 
-    fapp.include_router(routers.router)
+    fapp.include_router(router)
     fapp.include_router(oauth2.router)
     fapp.include_router(article.router)
     fapp.include_router(user.router)
+    fapp.include_router(develop.router)
 
     add_pagination(fapp)
     

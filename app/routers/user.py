@@ -101,7 +101,7 @@ class EmailBody(BaseModel):
 async def send_email_with_key_to_change_password(
     body: Annotated[EmailBody, Body(title="User to confirm")],
     db: Session = Depends(get_db)
-) -> DefaultResponseModel:
+) -> DefaultResponseModel: 
     if not (user := get_user_by_email(db, body.email)):
         raise HTTPException(status_code=404, detail='User with this email doesn\'t exist')
     
@@ -186,7 +186,7 @@ class UserProfileById(BaseModel):
     sex: str
     avatar: str
     short_description: str
-    followers_count: int
+    follower_count: int
     first_name: str
     last_name: str
     article_count: int = 0
@@ -194,7 +194,7 @@ class UserProfileById(BaseModel):
 
 @router.get("/get/{user_id}", status_code=status.HTTP_200_OK)
 async def get_user_by_user_id(
-    user_id: Annotated[str, Path(title="User id")],
+    user_id: Annotated[int, Path(title="User id")],
     db: Session = Depends(get_db)
 ) -> UserProfileById:
     if not (user := get_user(db, user_id)):
@@ -202,10 +202,9 @@ async def get_user_by_user_id(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail='Invalid credentials'
         )
-    
     user.follower_count = get_follows_amount(db, user.id)
     db.commit()
-
+    
     output = {
         "id": user.id,
         "sex": user.sex,
