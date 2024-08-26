@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from app.dependencies import get_or_create
 from . import models, schemas
 from typing import Union, Literal
+from sqlalchemy.sql import text
 
 def get_articles(db: Session, sort_order: Union[None, Literal['asc', 'desc']] = None):
     if sort_order == "asc":
@@ -13,12 +14,22 @@ def get_articles(db: Session, sort_order: Union[None, Literal['asc', 'desc']] = 
         return db.query(models.Article).all()
     raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid sort order. Allowed values are 'asc' and 'desc'.")
 
-def get_article_by_slug(db: Session, slug: str):
-    return db.query(models.Article).filter(slug == slug).first()
+def get_article_by_slug(db: Session, slug_title: str):
+    # Use text() to wrap the raw SQL query
+    sql = text("SELECT * FROM articles WHERE slug = :slug_title")
+    result = db.execute(sql, {'slug_title': slug_title})
+    article = result.fetchone()
+    print(article)
+    
+    sql = text("SELECT * FROM articles")
+    result = db.execute(sql, {'slug_title': slug_title})
+    article = result.fetchone()
+    print(article.slug)
+    return db.query(models.Article).filter(models.Article.slug == slug_title).first()
 
 def get_article_by_id(db: Session, article_id: int):
     return db.query(models.Article).filter(models.Article.id == article_id).first()
-  
+
 def get_articles_by_user_id(db: Session, user_id: int):
     return db.query(models.Article).filter(models.Article.author_id == user_id).all()
   
@@ -130,3 +141,23 @@ def get_wish_list_by_user_id_and_article_id(db: Session, user_id: int, article_i
     db_wish_list = db.query(models.WishList).filter(models.WishList.user_id == user_id,
                                                     models.WishList.article_id == article_id).first()
     return db_wish_list
+
+def is_article_purchased_by_user(db: Session, user_id: int, article_id: int) -> bool:
+    return db.query(models.ArticlePurchase).filter(
+        models.ArticlePurchase.user_id == user_id,
+        models.ArticlePurchase.article_id == article_id,
+    ).first()
+
+def add_purchased_article(db: Session, user_id: int, article_id: int) -> None:
+    purchase = models.ArticlePurchase(user_id=user_id, article_id=article_id)
+    db.add(purchase)
+    db.commit()
+
+def has_user_purchased_article(db: Session, user_id: int, article_id: int) -> bool:
+    return db.query(models.ArticlePurchase).filter_by(user_id=user_id, article_id=article_id).first() is not None
+
+def is_user_author_of_article(db: Session, user_id: int, article_id: int) -> bool:
+    return db.query(models.Article).filter_by(id=article_id, author_id=user_id).first() is not None
+
+def is_article_free(db: Session, article_id: int) -> bool:
+    return db.query(models.Article).filter_by(id=article_id, is_free=True).first() is not None
