@@ -14,6 +14,7 @@ class User(Base):
     sex = Column(String(31), unique=False)
     avatar = Column(String, unique=False, default="media/uploads/user/default.jpg")
     background_image = Column(String, unique=False, default="media/uploads/user/default_bg_img.png")
+    description = Column(String(255), unique=False, default="")
     short_description = Column(String(255), unique=False, default="")
     is_active = Column(Boolean, unique=False, default=False)
     follower_count = Column(Integer, unique=False, default=0)
@@ -26,6 +27,8 @@ class User(Base):
     comments = relationship('ArticleComment', back_populates='author', cascade='all, delete-orphan')  
     
     wish_list = relationship('WishList', back_populates='user', cascade='all, delete-orphan')
+
+    skills = relationship('SkillList', back_populates='user', cascade='all, delete-orphan')
     
     @property
     def avatar_url(self):
@@ -40,3 +43,21 @@ class Follower(Base):
 
     followed = relationship('User', foreign_keys=[followed_id], back_populates='following', overlaps="followers,following_user")
     follower = relationship('User', foreign_keys=[follower_id], back_populates='followers', overlaps="followers,following_user")
+
+class SkillList(Base):
+    __tablename__ = "skill_list"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey('users.id'), unique=False)
+    skill_id = Column(Integer, ForeignKey('skills.id'), unique=False)
+
+    user = relationship('User', back_populates='skills')
+    skill = relationship('Skill', back_populates='skill_list')
+
+class Skill(Base):
+    __tablename__ = "skills"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    skill_name = Column(String(31), unique=False)
+
+    skill_list = relationship('SkillList', back_populates='skill', cascade='all, delete-orphan')
