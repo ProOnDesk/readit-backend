@@ -149,7 +149,7 @@ def is_article_purchased_by_user(db: Session, user_id: int, article_id: int) -> 
     ).first()
 
 def add_purchased_article(db: Session, user_id: int, article_id: int) -> None:
-    purchase = models.ArticlePurchase(user_id=user_id, article_id=article_id, is_purchased=True)
+    purchase = models.ArticlePurchase(user_id=user_id, article_id=article_id)
     db.add(purchase)
     db.commit()
 
