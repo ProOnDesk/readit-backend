@@ -10,6 +10,7 @@ class UserBase(BaseModel):
 class UserCreate(UserBase):
     password: str
     avatar: str | None = "media/uploads/user/default.jpg"
+    background_image: str | None = "media/uploads/user/default_bg_img.png"
     short_description: str | None = ""
     is_active: bool | None = False
     follower_count: int | None = 0
@@ -17,6 +18,7 @@ class UserCreate(UserBase):
 class UserProfile(UserBase):
     id: int
     avatar: str
+    background_image: str
     short_description: str
     follower_count: int
     article_count: int = 0

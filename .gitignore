@@ -207,6 +207,4 @@ pyrightconfig.json
 .history
 .ionide
 
-media/
-!media/uploads/user/default.jpg
 # End of https://www.toptal.com/developers/gitignore/api/python,git,visualstudiocode
