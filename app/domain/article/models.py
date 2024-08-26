@@ -1,3 +1,4 @@
+from fastapi import Depends
 from sqlalchemy import Boolean, Column, Float, ForeignKey, Integer, String, Text, Table, event, UniqueConstraint, func
 from sqlalchemy.orm import relationship, Session
 from sqlalchemy.types import DateTime
@@ -5,6 +6,18 @@ from ..model_base import Base
 import datetime
 import re
 from app.config import IP_ADDRESS
+from app.dependencies import get_db
+
+class RatingNotCalculatedError(Exception):
+    def __init__(self, message="Rating has not been calculated. Please call 'calculate_rating' first."):
+        self.message = message
+        
+        super().__init__(self.message)
+        
+def article_avg_rating(db: Session, article_id: int,) -> float:
+    avg_rating = db.query(func.avg(ArticleComment.rating)).filter(ArticleComment.article_id == article_id).scalar()
+    return float(avg_rating) if avg_rating is not None else 0.0
+
 def generate_slug(title: str) -> str:
     return re.sub(r'\s+', '-', title).lower()
 
@@ -62,7 +75,17 @@ class Article(Base):
     
     @property
     def title_image_url(self):
-        return IP_ADDRESS +self.title_image
+        return IP_ADDRESS + self.title_image
+    
+    @property
+    def rating(self):
+        if not hasattr(self, '_rating'):
+            raise RatingNotCalculatedError()
+
+        return self._rating
+    
+    def calculate_rating(self, db: Session):
+        self._rating = article_avg_rating(db=db, article_id=self.id)
     
 class ArticlePurchase(Base):
     __tablename__ = "article_purchase"

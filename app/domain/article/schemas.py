@@ -59,6 +59,7 @@ class ResponseArticle(BaseArticle):
     created_at: datetime
     view_count: int
     title_image_url: str
+    rating: float
 
 class ResponseArticleDetail(ResponseArticle):
     content_elements: list[ResponseArticleContentElement]
