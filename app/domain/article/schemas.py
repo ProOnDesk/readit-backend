@@ -60,6 +60,7 @@ class ResponseArticle(BaseArticle):
     view_count: int
     title_image_url: str
     rating: float
+    rating_count: int
 
 class ResponseArticleDetail(ResponseArticle):
     content_elements: list[ResponseArticleContentElement]
