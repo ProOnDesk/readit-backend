@@ -30,6 +30,8 @@ class BaseArticle(BaseModel):
     title: str
     summary: str
     tags: Optional[list[BaseTag]] = None
+    is_free: bool
+    price: float
     
 class CreateArticle(BaseArticle):
     content_elements: list[BaseArticleContentElement]
@@ -57,6 +59,7 @@ class ResponseArticle(BaseArticle):
     created_at: datetime
     view_count: int
     title_image_url: str
+    rating: float
 
 class ResponseArticleDetail(ResponseArticle):
     content_elements: list[ResponseArticleContentElement]
