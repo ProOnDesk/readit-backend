@@ -245,17 +245,42 @@ async def buy_article_by_id(article_id: int, user_id: Annotated[int, Depends(aut
                 status_code=status.HTTP_403_FORBIDDEN, 
                 detail="You have already purchased this article"
             )
-        
-        service.add_purchased_article(db=db, user_id=user_id, article_id=article_id)
-        
+            
         article = service.get_article_by_id(db=db, article_id=article_id)
         if not article:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND, 
                 detail="Article not found"
             )
+            
+        service.add_purchased_article(db=db, user_id=user_id, article_id=article_id)
+        
+
         
         return {"detail": "Purchased article successfully"}
+    
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, 
+            detail=f"An unexpected error occurred: {str(e)}"
+        )
+        
+@router.get('/bought-list')
+async def get_bought_articles(user_id: Annotated[int, Depends(authenticate)], db: Session = Depends(get_db)) -> Page[schemas.PurchasedArticle]:
+    try:
+        purchased_articles = service.get_purchased_articles_by_user_id(db=db, user_id=user_id)
+        
+        [purchased_articles.article.calculate_rating(db=db) for purchased_articles in purchased_articles]
+
+        if not purchased_articles:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="No purchased articles found"
+            )
+        
+        return paginate(purchased_articles)
     
     except HTTPException as e:
         raise e
