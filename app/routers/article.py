@@ -155,7 +155,8 @@ async def get_article_by_id(article_id: int, db: Session = Depends(get_db)) -> s
     db.add(db_article)
     db.commit()
     db.refresh(db_article)
-    
+    db_article.calculate_rating(db=db)
+
     return db_article
 
 @router.get('/slug/{slug}', status_code=status.HTTP_200_OK)
