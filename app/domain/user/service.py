@@ -1,4 +1,5 @@
 from sqlalchemy.orm import Session
+from sqlalchemy import func, or_
 from passlib.context import CryptContext
 
 from . import models, schemas
@@ -123,3 +124,33 @@ def get_user_skills(db: Session, user_id: int):
         skill_list.append(schemas.ReturnSkillListElement(id=skill.id, skill_name=skill.skill.skill_name))
 
     return skill_list
+
+def get_top_users_by_most_followers(db: Session):
+    query = db.query(models.User)\
+             .order_by(models.User.follower_count.desc())\
+             .all()
+    return query
+
+def get_top_users_by_most_articles(db: Session):
+    from app.domain.article.models import Article
+    
+    query = db.query(models.User)\
+             .order_by(models.User.article_count.desc())\
+             .all()
+    return query
+
+def search_users_by_first_name_and_last_name(db: Session, value: str):
+    # Ensure that the value is safely handled for partial matching
+    search_value = f"%{value}%"
+
+    # Query the User model with a filter for both first_name and last_name
+    query = db.query(models.User)\
+              .filter(
+                  or_(
+                      models.User.first_name.ilike(search_value),
+                      models.User.last_name.ilike(search_value)
+                  )
+              )\
+              .all()
+
+    return query

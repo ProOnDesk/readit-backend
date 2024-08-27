@@ -9,12 +9,6 @@ from app.config import IP_ADDRESS
 from app.dependencies import get_db
 from urllib.parse import quote
 
-class RatingNotCalculatedError(Exception):
-    def __init__(self, message="Rating has not been calculated. Please call 'calculate_rating' first."):
-        self.message = message
-        
-        super().__init__(self.message)
-        
 def article_avg_rating(db: Session, article_id: int) -> float:
     avg_rating = db.query(func.avg(ArticleComment.rating)).filter(ArticleComment.article_id == article_id).scalar()
     return float(avg_rating) if avg_rating is not None else 0.0
@@ -67,6 +61,8 @@ class Article(Base):
     title_image = Column(String(255), nullable=False)
     is_free = Column(Boolean, default=True)
     price = Column(Float(precision=2), default=0.00)
+    rating = Column(Float(precision=2), default=0.00)
+    rating_count = Column(Integer, default=0)
     
     tags = relationship('Tag', secondary='article_tag', back_populates='articles')
     author = relationship('User', back_populates='articles')
@@ -82,23 +78,29 @@ class Article(Base):
     def title_image_url(self):
         return IP_ADDRESS + self.title_image
     
-    @property
-    def rating(self):
-        if not hasattr(self, '_rating'):
-            raise RatingNotCalculatedError()
+@event.listens_for(Article, 'after_insert')
+def increment_article_count(mapper, connection, target):
+    from app.domain.user.models import User
+    
+    session = Session(bind=connection)
+    
+    session.query(User).filter(User.id == target.author_id).update({
+        User.article_count: User.article_count + 1
+    }, synchronize_session=False)
+    
+    session.commit()
 
-        return self._rating
+@event.listens_for(Article, 'after_delete')
+def decrement_article_count(mapper, connection, target):
+    from app.domain.user.models import User
     
-    @property
-    def rating_count(self):
-        if not hasattr(self, '_rating_count'):
-            raise RatingNotCalculatedError()
-        
-        return self._rating_count
+    session = Session(bind=connection)
     
-    def calculate_rating(self, db: Session):
-        self._rating = article_avg_rating(db=db, article_id=self.id)
-        self._rating_count = count_article_ratings(db=db, article_id=self.id)
+    session.query(User).filter(User.id == target.author_id).update({
+        User.article_count: User.article_count - 1
+    }, synchronize_session=False)
+    
+    session.commit()   
     
 class ArticlePurchase(Base):
     __tablename__ = "article_purchase"
@@ -159,3 +161,25 @@ def set_unique_slug(mapper, connection, target):
         session = Session.object_session(target)
         if session:
             target.slug = unique_slug(session, base_slug, Article)
+            
+# Event listeners for ArticleComment model
+@event.listens_for(ArticleComment, 'after_insert')
+@event.listens_for(ArticleComment, 'after_update')
+@event.listens_for(ArticleComment, 'after_delete')
+def update_article_rating_on_comment_change(mapper, connection, target):
+    print('update')
+    session = Session(bind=connection)
+    
+    # Calculate new rating and rating count for the affected article
+    article_id = target.article_id
+    new_rating = article_avg_rating(db=session, article_id=article_id)
+    new_rating_count = count_article_ratings(db=session, article_id=article_id)
+    
+    # Update the article's rating and rating count
+    session.query(Article).filter(Article.id == article_id).update({
+        Article.rating: new_rating,
+        Article.rating_count: new_rating_count
+    }, synchronize_session=False)
+    
+    # Commit changes
+    session.commit()
