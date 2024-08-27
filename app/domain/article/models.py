@@ -7,6 +7,7 @@ import datetime
 import re
 from app.config import IP_ADDRESS
 from app.dependencies import get_db
+from urllib.parse import quote
 
 class RatingNotCalculatedError(Exception):
     def __init__(self, message="Rating has not been calculated. Please call 'calculate_rating' first."):
@@ -14,12 +15,16 @@ class RatingNotCalculatedError(Exception):
         
         super().__init__(self.message)
         
-def article_avg_rating(db: Session, article_id: int,) -> float:
+def article_avg_rating(db: Session, article_id: int) -> float:
     avg_rating = db.query(func.avg(ArticleComment.rating)).filter(ArticleComment.article_id == article_id).scalar()
     return float(avg_rating) if avg_rating is not None else 0.0
 
+def count_article_ratings(db: Session, article_id: int) -> int:
+    count_rating = db.query(func.count(ArticleComment.id)).filter(ArticleComment.article_id == article_id).scalar()
+    return count_rating if count_rating is not None else 0
+
 def generate_slug(title: str) -> str:
-    return re.sub(r'\s+', '-', title).lower()
+    return quote(re.sub(r'\s+', '-', title).lower())
 
 def unique_slug(session: Session, base_slug: str, model_class):
     """Generate a unique slug with a number if necessary."""
@@ -84,8 +89,16 @@ class Article(Base):
 
         return self._rating
     
+    @property
+    def rating_count(self):
+        if not hasattr(self, '_rating_count'):
+            raise RatingNotCalculatedError()
+        
+        return self._rating_count
+    
     def calculate_rating(self, db: Session):
         self._rating = article_avg_rating(db=db, article_id=self.id)
+        self._rating_count = count_article_ratings(db=db, article_id=self.id)
     
 class ArticlePurchase(Base):
     __tablename__ = "article_purchase"
