@@ -126,10 +126,10 @@ async def get_detail_article_by_id(article_id: int, user_id: Annotated[int, Depe
     
     return db_article
 
-@router.get('/detail/slug/{slug}', status_code=status.HTTP_200_OK)
-async def get_detail_article_by_slug_title(slug: str, user_id: Annotated[int, Depends(authenticate)], db: Session = Depends(get_db)) -> schemas.ResponseArticleDetail:
+@router.post('/detail/slug', status_code=status.HTTP_200_OK)
+async def get_detail_article_by_slug_title(slug: schemas.Slug , user_id: Annotated[int, Depends(authenticate)], db: Session = Depends(get_db)) -> schemas.ResponseArticleDetail:
     
-    db_article = service.get_article_by_slug(db=db, slug_title=slug)
+    db_article = service.get_article_by_slug(db=db, slug_title=slug.slug)
     if db_article is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Article does not exist")
     
@@ -159,9 +159,9 @@ async def get_article_by_id(article_id: int, db: Session = Depends(get_db)) -> s
 
     return db_article
 
-@router.get('/slug/{slug}', status_code=status.HTTP_200_OK)
-async def get_article_by_slug_title(slug: str, db: Session = Depends(get_db)) -> schemas.ResponseArticle:
-    db_article = service.get_article_by_slug(db=db, slug_title=slug)
+@router.post('/slug', status_code=status.HTTP_200_OK)
+async def get_article_by_slug_title(slug: schemas.Slug, db: Session = Depends(get_db)) -> schemas.ResponseArticle:
+    db_article = service.get_article_by_slug(db=db, slug_title=slug.slug)
     if db_article is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Article does not exist")
     print(db_article)
@@ -171,7 +171,6 @@ async def get_article_by_slug_title(slug: str, db: Session = Depends(get_db)) ->
     db.refresh(db_article)
     db_article.calculate_rating(db=db)
 
-    
     return db_article
 
 @router.delete('/{article_id}', status_code=status.HTTP_200_OK)
@@ -212,11 +211,13 @@ async def delete_comment_by_article_id(article_id: int, user_id: Annotated[int, 
 @router.post('/wish-list/add/{article_id}', status_code=status.HTTP_200_OK)
 async def add_article_to_wish_list(article_id: int, user_id: Annotated[int, Depends(authenticate)], db: Session = Depends(get_db)) -> schemas.ResponseWishList:
     db_wish_list = service.create_wish_list(db=db, article_id=article_id, user_id=user_id)
+    db_wish_list.article.calculate_rating(db=db)
     return db_wish_list
 
 @router.get('/wish-list/all/me', status_code=status.HTTP_200_OK)
 async def get_articles_from_wish_list(user_id: Annotated[int, Depends(authenticate)], sort_order: Union[None, Literal['asc', 'desc']] = None, db: Session = Depends(get_db)) ->Page[schemas.ResponseWishList]:
     db_wish_list = service.get_wish_list_by_user_id(db=db, user_id=user_id, sort_order=sort_order)
+    [wish.article.calculate_rating(db=db) for wish in db_wish_list]
     return paginate(db_wish_list)
 
 @router.delete('/wish-list/delete/{article_id}', status_code=status.HTTP_200_OK)
