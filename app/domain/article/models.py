@@ -24,7 +24,7 @@ def count_article_ratings(db: Session, article_id: int) -> int:
     return count_rating if count_rating is not None else 0
 
 def generate_slug(title: str) -> str:
-    return quote(re.sub(r'\s+', '-', title).lower())
+    return re.sub(r'\s+', '-', title).lower()
 
 def unique_slug(session: Session, base_slug: str, model_class):
     """Generate a unique slug with a number if necessary."""

@@ -162,3 +162,5 @@ def is_user_author_of_article(db: Session, user_id: int, article_id: int) -> boo
 def is_article_free(db: Session, article_id: int) -> bool:
     return db.query(models.Article).filter_by(id=article_id, is_free=True).first() is not None
 
+def get_purchased_articles_by_user_id(db: Session, user_id: int) -> list[models.ArticlePurchase] | None:
+    return db.query(models.ArticlePurchase).filter_by(user_id=user_id).all()
