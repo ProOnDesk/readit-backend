@@ -76,19 +76,19 @@ def get_article_comments_by_article_id(db: Session, article_id: int, sort_order:
     elif sort_order is None:
         return db.query(models.ArticleComment).filter(models.ArticleComment.article_id == article_id).all()
     else:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid sort order. Allowed values are 'asc' and 'desc'.")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Niepoprawny typ sortowania. Akceptowane typy to: 'asc' lub 'desc'.")
 
 def create_article_comment(db: Session, comment: schemas.CreateArticle, article_id: int, user_id: int):
     article = db.query(models.Article).filter(models.Article.id == article_id).first()
     if article is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Article id does not exists")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Artykuł nie istnieje")
     
     existing_comment = db.query(models.ArticleComment).filter(
         models.ArticleComment.article_id == article_id,
         models.ArticleComment.author_id == user_id
     ).first()
     if existing_comment:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Comment already exists for this author and article")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Komentarz do tego artykułu już istnieje")
     
     db_article_comment = models.ArticleComment(author_id=user_id, article_id=article_id, **comment.model_dump())
     
@@ -106,14 +106,14 @@ def delete_article_comment(db: Session, article_comment: models.ArticleComment):
 def create_wish_list(db: Session, article_id: int, user_id: int):
     article = db.query(models.Article).filter(models.Article.id == article_id).first()
     if article is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Article id does not exists")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Artykuł nie istnieje")
     
     existing_wish_list = db.query(models.WishList).filter(
         models.WishList.article_id == article_id,
         models.WishList.user_id == user_id
     ).first()
     if existing_wish_list:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="You already have this article in your wish list.")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Masz już ten artykuł na swojej liście życzeń")
     
     db_wish_list = models.WishList(article_id=article_id, user_id=user_id)
     db.add(db_wish_list)
@@ -134,7 +134,7 @@ def get_wish_list_by_user_id(db: Session, user_id: int, sort_order: Union[None, 
     elif sort_order is None:
         db_wish_lists = db.query(models.WishList).filter(models.WishList.user_id == user_id).all()
     else:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid sort order. Allowed values are 'asc' and 'desc'.")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Niepoprawny typ sortowania. Akceptowane typy to: 'asc' lub 'desc'.")
 
     return db_wish_lists
 
