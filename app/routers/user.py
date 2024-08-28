@@ -602,6 +602,38 @@ async def unfollow_user(
         "message": "Unfollowed succesfully"
     }
 
+class CheckFollowModel(BaseModel):
+    is_followed: bool
+
+@router.get("/follow/{followed_id}", status_code=status.HTTP_200_OK)
+async def check_if_user_followes_another_user(
+    followed_id: Annotated[int, Path(title="Id of person that is being unfollowed")],
+    user_id: Annotated[int, Depends(authenticate)],
+    db: Session = Depends(get_db)
+) -> CheckFollowModel:
+    
+    if not (followed_user := get_user(db, followed_id)):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail='Followed user with this id doesn\'t exist'
+        )
+    
+    if user_id == followed_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail='You can\'t follow or unfollow yourself'
+        )
+    
+    if not (follow := get_follow_by_both_ids(db, followed_id, user_id)):
+        return {
+            "is_followed": False
+        }
+    else:
+        return {
+            "is_followed": True
+        }
+
+
 class FollowsAmountModel(BaseModel):
     follows_amount: int
 
