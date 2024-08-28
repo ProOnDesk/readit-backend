@@ -106,8 +106,40 @@ async def get_articles(sort_order: Union[None, Literal['asc', 'desc']] = None, d
     return paginate(db_articles)
 
 @router.get('/search', status_code=status.HTTP_200_OK)
-async def search_article_by_title_and_summary(value: str = "", tags: list[str] = Query(default=[]), db: Session = Depends(get_db)) -> Page[schemas.ResponseArticle]:
-    db_articles = service.search_articles(db=db, value=value, tags=tags)
+async def search_article_by_title_and_summary(
+    value: str = "",
+    tags: list[str] = Query(default=[]),
+    author_id: Optional[int] = None,
+    min_view_count: Optional[int] = None,
+    max_view_count: Optional[int] = None,
+    min_price: Optional[float] = None,
+    max_price: Optional[float] = None,
+    min_rating: Optional[float] = None,
+    max_rating: Optional[float] = None,
+    is_free: Optional[bool] = None,
+    sort_order: Literal['asc', 'desc'] = 'desc',
+    sort_by: Literal['views', 'date', 'price', 'rating'] = 'date',
+    db: Session = Depends(get_db)
+) -> Page[schemas.ResponseArticle]:
+    
+    # Perform the search with the filters
+    db_articles = service.search_articles(
+        db=db,
+        value=value,
+        tags=tags,
+        author_id=author_id,
+        min_view_count=min_view_count,
+        max_view_count=max_view_count,
+        min_price=min_price,
+        max_price=max_price,
+        min_rating=min_rating,
+        max_rating=max_rating,
+        is_free=is_free,
+        sort_order=sort_order,
+        sort_by=sort_by
+    )
+    
+    # Paginate the result
     return paginate(db_articles)
 
 @router.get('/detail/id/{article_id}', status_code=status.HTTP_200_OK)

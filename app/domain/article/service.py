@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy.sql import or_
 from app.dependencies import get_or_create
 from . import models, schemas
-from typing import Union, Literal
+from typing import Union, Literal, Optional
 from sqlalchemy.sql import text
 
 def get_articles(db: Session, sort_order: Union[None, Literal['asc', 'desc']] = None) -> list[models.Article]:
@@ -166,25 +166,73 @@ def is_article_free(db: Session, article_id: int) -> bool:
 def get_purchased_articles_by_user_id(db: Session, user_id: int) -> list[models.ArticlePurchase] | None:
     return db.query(models.ArticlePurchase).filter_by(user_id=user_id).all()
 
-def search_articles(db: Session, value: str, tags: list[str]):
-    search_term = f"%{value}%"
+def search_articles(
+    db: Session,
+    value: str,
+    tags: list[str] = [],
+    author_id: Optional[int] = None,
+    min_view_count: Optional[int] = None,
+    max_view_count: Optional[int] = None,
+    min_price: Optional[float] = None,
+    max_price: Optional[float] = None,
+    min_rating: Optional[float] = None,
+    max_rating: Optional[float] = None,
+    is_free: Optional[bool] = None,
+    sort_order: Literal['asc', 'desc'] = 'desc',
+    sort_by: Literal['views', 'date', 'price', 'rating'] = 'date'
+) -> list[models.Article]:
     
-    # Base query to search by title or summary
-    query = db.query(models.Article).filter(
-        or_(
-            models.Article.title.ilike(search_term),
-            models.Article.summary.ilike(search_term)
+    query = db.query(models.Article)
+
+    # Search by title and summary
+    if value:
+        search_pattern = f"%{value}%"
+        query = query.filter(
+            or_(
+                models.Article.title.ilike(search_pattern),
+                models.Article.summary.ilike(search_pattern)
+            )
         )
-    )
 
-    # Add tag filtering if tags are provided
+    # Filter by tags
     if tags:
-        query = query.join(models.Article.tags).filter(models.Tag.value.in_(tags)).group_by(models.Article.id)
+        query = query.join(models.Article.tags).filter(models.Tag.value.in_(tags))
 
-    # Order by relevance: matches in title first, then summary
-    results = query.order_by(
-        models.Article.title.ilike(search_term).desc(),
-        models.Article.summary.ilike(search_term).desc()
-    ).all()
-    
-    return results
+    # Filter by author
+    if author_id:
+        query = query.filter(models.Article.author_id == author_id)
+
+    # Filter by view count
+    if min_view_count is not None:
+        query = query.filter(models.Article.view_count >= min_view_count)
+    if max_view_count is not None:
+        query = query.filter(models.Article.view_count <= max_view_count)
+
+    # Filter by price
+    if min_price is not None:
+        query = query.filter(models.Article.price >= min_price)
+    if max_price is not None:
+        query = query.filter(models.Article.price <= max_price)
+
+    # Filter by rating
+    if min_rating is not None:
+        query = query.filter(models.Article.rating >= min_rating)
+    if max_rating is not None:
+        query = query.filter(models.Article.rating <= max_rating)
+
+    # Apply sorting based on sort_by and sort_order
+    if sort_by == 'views':
+        sort_column = models.Article.view_count
+    elif sort_by == 'price':
+        sort_column = models.Article.price
+    elif sort_by == 'rating':
+        sort_column = models.Article.rating
+    else:  # Default to sorting by date
+        sort_column = models.Article.created_at
+
+    if sort_order == 'asc':
+        query = query.order_by(sort_column.asc())
+    else:
+        query = query.order_by(sort_column.desc())
+
+    return query.all()
