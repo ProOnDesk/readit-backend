@@ -28,7 +28,7 @@ def seed_data(db: Session = Depends(get_db)):
                 hashed_password=hash_password('password'),
                 sex=fake.random_element(['Male', 'Female']),
                 short_description=fake.sentence()
-            ) for _ in range(5)
+            ) for _ in range(15)
         ]
         db.add_all(users)
         

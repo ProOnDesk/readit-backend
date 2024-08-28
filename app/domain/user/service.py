@@ -1,6 +1,7 @@
 from sqlalchemy.orm import Session
 from sqlalchemy import func, or_
 from passlib.context import CryptContext
+from collections import Counter
 
 from . import models, schemas
 
@@ -140,17 +141,40 @@ def get_top_users_by_most_articles(db: Session):
     return query
 
 def search_users_by_first_name_and_last_name(db: Session, value: str):
-    # Ensure that the value is safely handled for partial matching
-    search_value = f"%{value}%"
+    # Split the input value into search terms
+    search_terms = value.split()
+    
+    # Initialize a list to store query results
+    all_results = []
 
-    # Query the User model with a filter for both first_name and last_name
-    query = db.query(models.User)\
-              .filter(
-                  or_(
-                      models.User.first_name.ilike(search_value),
-                      models.User.last_name.ilike(search_value)
-                  )
-              )\
-              .all()
-
-    return query
+    # Execute queries for each substring of each search term
+    for term in search_terms:
+        term_length = len(term)
+        for i in range(1, term_length + 1):
+            substring = term[:i]
+            search_pattern = f"%{substring}%"
+            
+            # Run the query for the current substring
+            results = db.query(models.User).filter(
+                or_(
+                    models.User.first_name.ilike(search_pattern),
+                    models.User.last_name.ilike(search_pattern)
+                )
+            ).all()
+            
+            # Add the results to the list
+            all_results.extend(results)
+    print(all_results)
+    # Count the occurrences of each user
+    user_counter = Counter(user.id for user in all_results)
+    
+    # Create a list of users with their match counts
+    users_with_counts = [
+        (db.query(models.User).filter(models.User.id == user_id).one(), count)
+        for user_id, count in user_counter.items()
+    ]
+    
+    # Sort by match count in descending order
+    sorted_users = sorted(users_with_counts, key=lambda x: x[1], reverse=True)
+    
+    return sorted_users

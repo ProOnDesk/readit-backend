@@ -176,7 +176,7 @@ async def delete_article_by_id(article_id: int, user_id: Annotated[int, Depends(
     db_article = service.get_article_by_id(db=db, article_id=article_id)
     if db_article is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Article does not exist")
-    check_user_has_purchased_article
+    
     if db_article.author_id != user_id:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED)
     

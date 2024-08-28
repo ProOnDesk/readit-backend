@@ -625,11 +625,11 @@ async def get_followers_amount(
     }
 
 @router.get('/search')
-async def search_user_by_first_and_name_last_name(value: str = "", db: Session = Depends(get_db)) -> Page[UserProfileById]:
+async def search_user_by_first_and_name_last_name(value: str = "", db: Session = Depends(get_db)) -> Page:
     users = search_users_by_first_name_and_last_name(db=db, value=value)
     
     output = []
-    for user in users:
+    for user, match_count, in users:
         output.append({
             "id": user.id,
             "sex": user.sex,
@@ -642,7 +642,8 @@ async def search_user_by_first_and_name_last_name(value: str = "", db: Session =
             "last_name": user.last_name,
             "article_count": user.article_count,
             "articles": user.articles,
-            "skill_list": user.skills
+            "match_count": match_count
+ 
         })
 
     return paginate(output)
