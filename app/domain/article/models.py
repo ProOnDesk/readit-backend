@@ -67,9 +67,10 @@ class Article(Base):
     tags = relationship('Tag', secondary='article_tag', back_populates='articles')
     author = relationship('User', back_populates='articles')
     comments = relationship('ArticleComment', back_populates='article', cascade='all, delete-orphan')
-    wish_list = relationship('WishList', back_populates='article')
-    content_elements = relationship('ArticleContentElement', back_populates='article')
-    purchased_by = relationship('ArticlePurchase', back_populates='article')
+    wish_list = relationship('WishList', back_populates='article', cascade='all, delete-orphan')
+    content_elements = relationship('ArticleContentElement', back_populates='article', cascade='all, delete-orphan')
+    purchased_by = relationship('ArticlePurchase', back_populates='article', cascade='all, delete-orphan')
+
  
     def __repr__(self):
         return f"<Article(id={self.id}, title={self.title}, author={self.author}, created_at={self.created_at})>"
@@ -106,8 +107,8 @@ class ArticlePurchase(Base):
     __tablename__ = "article_purchase"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    user_id = Column(Integer, ForeignKey('users.id'), nullable=False)
-    article_id = Column(Integer, ForeignKey('articles.id'), nullable=False)
+    user_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    article_id = Column(Integer, ForeignKey('articles.id', ondelete='CASCADE'), nullable=False)
     
     __table_args__ = (
         UniqueConstraint('user_id', 'article_id', name='uix_user_article'),
@@ -121,7 +122,7 @@ class ArticlePurchase(Base):
 class ArticleContentElement(Base):
     __tablename__ = "article_content_elements"
     id = Column(Integer, primary_key=True, autoincrement=True)
-    article_id = Column(Integer, ForeignKey('articles.id'), nullable=False)
+    article_id = Column(Integer, ForeignKey('articles.id', ondelete='CASCADE'), nullable=False)
     content_type = Column(String(50), nullable=False)
     content = Column(Text, nullable=False)
     order = Column(Integer, nullable=False)
@@ -131,8 +132,8 @@ class ArticleContentElement(Base):
 class ArticleComment(Base):
     __tablename__ = "article_comment"
     id = Column(Integer, primary_key=True, autoincrement=True)
-    author_id = Column(Integer, ForeignKey('users.id'), nullable=False)
-    article_id = Column(Integer, ForeignKey('articles.id'), nullable=False)
+    author_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    article_id = Column(Integer, ForeignKey('articles.id', ondelete='CASCADE'), nullable=False)
     content = Column(String(1000), nullable=False)
     created_at = Column(DateTime, server_default=func.timezone('UTC', func.now()))
     rating = Column(Integer, nullable=False, default=1)
@@ -147,8 +148,8 @@ class ArticleComment(Base):
 class WishList(Base):
     __tablename__ = "wishlists"
     id = Column(Integer, primary_key=True, autoincrement=True)
-    article_id = Column(Integer, ForeignKey('articles.id'), nullable=False)
-    user_id = Column(Integer, ForeignKey('users.id'), nullable=False)
+    article_id = Column(Integer, ForeignKey('articles.id', ondelete='CASCADE'), nullable=False)
+    user_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
     created_at = Column(DateTime, server_default=func.timezone('UTC', func.now()))
 
     user = relationship('User', back_populates='wish_list')
