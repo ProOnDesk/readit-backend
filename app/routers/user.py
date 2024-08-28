@@ -190,6 +190,7 @@ async def get_user_by_access_token(
 
 class UserProfileById(BaseModel):
     id: int
+    email: str
     sex: str
     avatar: str
     background_image: str
@@ -218,6 +219,7 @@ async def get_user_by_user_id(
 
     output = {
         "id": user.id,
+        "email": user.email,
         "sex": user.sex,
         "avatar": IP_ADDRESS + user.avatar,
         "background_image": IP_ADDRESS + user.background_image,

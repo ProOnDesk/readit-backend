@@ -14,7 +14,7 @@ class User(Base):
     sex = Column(String(31), unique=False)
     avatar = Column(String, unique=False, default="media/uploads/user/default.jpg")
     background_image = Column(String, unique=False, default="media/uploads/user/default_bg_img.png")
-    description = Column(String(255), unique=False, default="")
+    description = Column(String(1023), unique=False, default="")
     short_description = Column(String(255), unique=False, default="")
     is_active = Column(Boolean, unique=False, default=False)
     follower_count = Column(Integer, unique=False, default=0)
