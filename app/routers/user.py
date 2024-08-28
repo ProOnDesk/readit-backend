@@ -1,4 +1,4 @@
-from typing import Annotated
+from typing import Annotated, Literal, Optional
 from fastapi import APIRouter, Depends, Response, Form, HTTPException, Path, Body, Query, status, File, UploadFile
 from sqlalchemy.orm import Session
 from app.dependencies import send_email, get_db, DefaultResponseModel, authenticate
@@ -645,9 +645,26 @@ async def get_followers_amount(
         "follows_amount": user.follower_count
     }
 
-@router.get('/search')
-async def search_user_by_first_and_name_last_name(value: str = "", db: Session = Depends(get_db)) -> Page:
-    users = search_users_by_first_name_and_last_name(db=db, value=value)
+@router.get('/search', status_code=status.HTTP_200_OK)
+async def search_user_by_first_and_last_name(
+    
+    value: str = "",
+    sort_order: Literal['asc', 'desc'] = 'desc',
+    sort_by: Literal['match_count', 'date', 'follower_count', 'article_count'] = 'match_count',
+    sex: Optional[str] = None,
+    db: Session = Depends(get_db)
+) -> Page:
+    """
+    Searches users by their first and last name based on the provided value query.
+    The `match_count` represents the number of matches found for each user in the search results.
+    """ 
+    users = search_users_by_first_name_and_last_name(
+        db=db,
+        value=value,
+        sort_order=sort_order,
+        sort_by=sort_by,
+        sex=sex
+    )
     
     output = []
     for user, match_count, in users:

@@ -3,7 +3,7 @@ from .models import User, Follower, Skill, SkillList
 
 class UserView(ModelView, model=User):
     column_list = [
-        'id', 'first_name', 'last_name', 'email', 'sex', 'avatar', 'background_image', 'description', 'short_description', "is_active", 'hashed_password'
+        'id', 'first_name', 'last_name', 'email', 'sex', 'avatar', 'follower_count', 'following_count', 'background_image', 'description', 'short_description', "is_active", 'hashed_password'
     ]
 
 class FollowerView(ModelView, model=Follower):

@@ -21,8 +21,6 @@ class User(Base):
     following_count = Column(Integer, unique=False, default=0)
     article_count = Column(Integer, unique=False, default=0)
     hashed_password = Column(String, unique=False)
-    price = Column(Float(precision=2), nullable=True, default=None)
-    is_free = Column(Boolean, unique=False, default=False)
     
     followers = relationship('Follower', foreign_keys='Follower.followed_id', back_populates='followed', lazy=True, cascade="all, delete-orphan")
     following = relationship('Follower', foreign_keys='Follower.follower_id', back_populates='follower', lazy=True, cascade="all, delete-orphan")
