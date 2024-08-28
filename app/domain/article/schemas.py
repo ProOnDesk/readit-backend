@@ -73,3 +73,11 @@ class BaseWishList(BaseModel):
 class ResponseWishList(BaseWishList):
     id: int
     created_at: datetime
+
+class PurchasedArticle(BaseModel):
+    id: int
+    user_id: int
+    article: ResponseArticle
+    
+class Slug(BaseModel):
+    slug: str

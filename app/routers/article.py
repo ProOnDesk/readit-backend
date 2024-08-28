@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status, File, UploadFile, Form
+from fastapi import APIRouter, Depends, HTTPException, status, File, UploadFile, Form, Query
 from sqlalchemy.orm import Session
 from app.domain.article import schemas, service, models
 from app.dependencies import get_db, authenticate, Tokens, DefaultResponseModel
@@ -77,7 +77,6 @@ async def create_article(
 
             
         db_article = service.create_article(db=db, article=article, user_id=user_id, title_image=title_image_url)
-        db_article.calculate_rating(db=db)
 
         
         return db_article
@@ -104,9 +103,12 @@ async def create_article(
 async def get_articles(sort_order: Union[None, Literal['asc', 'desc']] = None, db: Session = Depends(get_db)) -> Page[schemas.ResponseArticle]:
     
     db_articles = service.get_articles(db=db, sort_order=sort_order)
-    [article.calculate_rating(db=db) for article in db_articles]
     return paginate(db_articles)
 
+@router.get('/search', status_code=status.HTTP_200_OK)
+async def search_article_by_title_and_summary(value: str = "", tags: list[str] = Query(default=[]), db: Session = Depends(get_db)) -> Page[schemas.ResponseArticle]:
+    db_articles = service.search_articles(db=db, value=value, tags=tags)
+    return paginate(db_articles)
 
 @router.get('/detail/id/{article_id}', status_code=status.HTTP_200_OK)
 async def get_detail_article_by_id(article_id: int, user_id: Annotated[int, Depends(authenticate)], db: Session = Depends(get_db)) -> schemas.ResponseArticleDetail:
@@ -122,14 +124,13 @@ async def get_detail_article_by_id(article_id: int, user_id: Annotated[int, Depe
     db.add(db_article)
     db.commit()
     db.refresh(db_article)
-    db_article.calculate_rating(db=db)
     
     return db_article
 
-@router.get('/detail/slug/{slug}', status_code=status.HTTP_200_OK)
-async def get_detail_article_by_slug_title(slug: str, user_id: Annotated[int, Depends(authenticate)], db: Session = Depends(get_db)) -> schemas.ResponseArticleDetail:
+@router.post('/detail/slug', status_code=status.HTTP_200_OK)
+async def get_detail_article_by_slug_title(slug: schemas.Slug , user_id: Annotated[int, Depends(authenticate)], db: Session = Depends(get_db)) -> schemas.ResponseArticleDetail:
     
-    db_article = service.get_article_by_slug(db=db, slug_title=slug)
+    db_article = service.get_article_by_slug(db=db, slug_title=slug.slug)
     if db_article is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Article does not exist")
     
@@ -140,7 +141,6 @@ async def get_detail_article_by_slug_title(slug: str, user_id: Annotated[int, De
     db.add(db_article)
     db.commit()
     db.refresh(db_article)
-    db_article.calculate_rating(db=db)
 
     return db_article
 
@@ -155,12 +155,12 @@ async def get_article_by_id(article_id: int, db: Session = Depends(get_db)) -> s
     db.add(db_article)
     db.commit()
     db.refresh(db_article)
-    
+
     return db_article
 
-@router.get('/slug/{slug}', status_code=status.HTTP_200_OK)
-async def get_article_by_slug_title(slug: str, db: Session = Depends(get_db)) -> schemas.ResponseArticle:
-    db_article = service.get_article_by_slug(db=db, slug_title=slug)
+@router.post('/slug', status_code=status.HTTP_200_OK)
+async def get_article_by_slug_title(slug: schemas.Slug, db: Session = Depends(get_db)) -> schemas.ResponseArticle:
+    db_article = service.get_article_by_slug(db=db, slug_title=slug.slug)
     if db_article is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Article does not exist")
     print(db_article)
@@ -168,9 +168,7 @@ async def get_article_by_slug_title(slug: str, db: Session = Depends(get_db)) ->
     db.add(db_article)
     db.commit()
     db.refresh(db_article)
-    db_article.calculate_rating(db=db)
 
-    
     return db_article
 
 @router.delete('/{article_id}', status_code=status.HTTP_200_OK)
@@ -178,7 +176,7 @@ async def delete_article_by_id(article_id: int, user_id: Annotated[int, Depends(
     db_article = service.get_article_by_id(db=db, article_id=article_id)
     if db_article is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Article does not exist")
-    # check_user_has_purchased_article
+
     if db_article.author_id != user_id:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED)
     
@@ -245,17 +243,41 @@ async def buy_article_by_id(article_id: int, user_id: Annotated[int, Depends(aut
                 status_code=status.HTTP_403_FORBIDDEN, 
                 detail="You have already purchased this article"
             )
-        
-        service.add_purchased_article(db=db, user_id=user_id, article_id=article_id)
-        
+            
         article = service.get_article_by_id(db=db, article_id=article_id)
         if not article:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND, 
                 detail="Article not found"
             )
+            
+        service.add_purchased_article(db=db, user_id=user_id, article_id=article_id)
+        
+
         
         return {"detail": "Purchased article successfully"}
+    
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, 
+            detail=f"An unexpected error occurred: {str(e)}"
+        )
+        
+@router.get('/bought-list')
+async def get_bought_articles(user_id: Annotated[int, Depends(authenticate)], db: Session = Depends(get_db)) -> Page[schemas.PurchasedArticle]:
+    try:
+        purchased_articles = service.get_purchased_articles_by_user_id(db=db, user_id=user_id)
+        
+
+        if not purchased_articles:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="No purchased articles found"
+            )
+        
+        return paginate(purchased_articles)
     
     except HTTPException as e:
         raise e

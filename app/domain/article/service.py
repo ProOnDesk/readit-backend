@@ -1,5 +1,6 @@
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
+from sqlalchemy.sql import or_
 from app.dependencies import get_or_create
 from . import models, schemas
 from typing import Union, Literal
@@ -162,3 +163,28 @@ def is_user_author_of_article(db: Session, user_id: int, article_id: int) -> boo
 def is_article_free(db: Session, article_id: int) -> bool:
     return db.query(models.Article).filter_by(id=article_id, is_free=True).first() is not None
 
+def get_purchased_articles_by_user_id(db: Session, user_id: int) -> list[models.ArticlePurchase] | None:
+    return db.query(models.ArticlePurchase).filter_by(user_id=user_id).all()
+
+def search_articles(db: Session, value: str, tags: list[str]):
+    search_term = f"%{value}%"
+    
+    # Base query to search by title or summary
+    query = db.query(models.Article).filter(
+        or_(
+            models.Article.title.ilike(search_term),
+            models.Article.summary.ilike(search_term)
+        )
+    )
+
+    # Add tag filtering if tags are provided
+    if tags:
+        query = query.join(models.Article.tags).filter(models.Tag.value.in_(tags)).group_by(models.Article.id)
+
+    # Order by relevance: matches in title first, then summary
+    results = query.order_by(
+        models.Article.title.ilike(search_term).desc(),
+        models.Article.summary.ilike(search_term).desc()
+    ).all()
+    
+    return results

@@ -1,5 +1,7 @@
 from sqlalchemy.orm import Session
+from sqlalchemy import func, or_
 from passlib.context import CryptContext
+from collections import Counter
 
 from . import models, schemas
 
@@ -123,3 +125,48 @@ def get_user_skills(db: Session, user_id: int):
         skill_list.append(schemas.ReturnSkillListElement(id=skill.id, skill_name=skill.skill.skill_name))
 
     return skill_list
+
+def get_top_users_by_most_followers(db: Session):
+    query = db.query(models.User)\
+             .order_by(models.User.follower_count.desc())\
+             .all()
+    return query
+
+def get_top_users_by_most_articles(db: Session):
+    from app.domain.article.models import Article
+    
+    query = db.query(models.User)\
+             .order_by(models.User.article_count.desc())\
+             .all()
+    return query
+
+def search_users_by_first_name_and_last_name(db: Session, value: str):
+    search_terms = value.split()
+    
+    all_results = []
+
+    for term in search_terms:
+        term_length = len(term)
+        for i in range(1, term_length + 1):
+            substring = term[:i]
+            search_pattern = f"%{substring}%"
+            
+            results = db.query(models.User).filter(
+                or_(
+                    models.User.first_name.ilike(search_pattern),
+                    models.User.last_name.ilike(search_pattern)
+                )
+            ).all()
+            
+            all_results.extend(results)
+            
+    user_counter = Counter(user.id for user in all_results)
+    
+    users_with_counts = [
+        (db.query(models.User).filter(models.User.id == user_id).one(), count)
+        for user_id, count in user_counter.items()
+    ]
+    
+    sorted_users = sorted(users_with_counts, key=lambda x: x[1], reverse=True)
+    
+    return sorted_users

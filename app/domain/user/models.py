@@ -1,9 +1,9 @@
-from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, Float
-from sqlalchemy.orm import relationship
+from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, Float, event
+from sqlalchemy.orm import relationship, Session
+from sqlalchemy.sql import func
 from app.config import IP_ADDRESS
 from ..model_base import Base
-
-
+    
 class User(Base):
     __tablename__ = "users"
 
@@ -18,22 +18,29 @@ class User(Base):
     short_description = Column(String(255), unique=False, default="")
     is_active = Column(Boolean, unique=False, default=False)
     follower_count = Column(Integer, unique=False, default=0)
+    following_count = Column(Integer, unique=False, default=0)
+    article_count = Column(Integer, unique=False, default=0)
     hashed_password = Column(String, unique=False)
     price = Column(Float(precision=2), nullable=True, default=None)
     is_free = Column(Boolean, unique=False, default=False)
     
-    followers = relationship('Follower', foreign_keys='Follower.follower_id', back_populates='follower', overlaps="following", lazy=True, cascade="all, delete-orphan")
-    following = relationship('Follower', foreign_keys='Follower.followed_id', back_populates='followed', overlaps="followers", lazy=True, cascade="all, delete-orphan")
+    followers = relationship('Follower', foreign_keys='Follower.followed_id', back_populates='followed', lazy=True, cascade="all, delete-orphan")
+    following = relationship('Follower', foreign_keys='Follower.follower_id', back_populates='follower', lazy=True, cascade="all, delete-orphan")
+    
     articles = relationship('Article', back_populates='author', cascade='all, delete-orphan')
     comments = relationship('ArticleComment', back_populates='author', cascade='all, delete-orphan')  
     wish_list = relationship('WishList', back_populates='user', cascade='all, delete-orphan')
-    purchased_articles = relationship('ArticlePurchase', back_populates='user')
+    purchased_articles = relationship('ArticlePurchase', back_populates='user', cascade='all, delete-orphan')
     skills = relationship('SkillList', back_populates='user', cascade='all, delete-orphan')
-
+    
     @property
     def avatar_url(self):
         return IP_ADDRESS + self.avatar
     
+    @property
+    def background_image_url(self):
+        return IP_ADDRESS + self.background_image
+
 class Follower(Base):
     __tablename__ = "followers"
 
@@ -41,9 +48,38 @@ class Follower(Base):
     followed_id = Column(Integer, ForeignKey('users.id'), unique=False, nullable=False)
     follower_id = Column(Integer, ForeignKey('users.id'), unique=False, nullable=False)
 
-    followed = relationship('User', foreign_keys=[followed_id], back_populates='following', overlaps="followers,following_user")
-    follower = relationship('User', foreign_keys=[follower_id], back_populates='followers', overlaps="followers,following_user")
+    followed = relationship('User', foreign_keys=[followed_id], back_populates='followers', overlaps="followers,following_user")
+    follower = relationship('User', foreign_keys=[follower_id], back_populates='following', overlaps="followers,following_user")
+    
+@event.listens_for(Follower, 'after_insert')
+def increment_follower_count(mapper, connection, target):
+    session = Session(bind=connection)
+    
+    session.query(User).filter(User.id == target.followed_id).update({
+        User.follower_count: User.follower_count + 1
+    }, synchronize_session=False)
+    
+    session.query(User).filter(User.id == target.follower_id).update({
+        User.following_count: User.following_count + 1
+    }, synchronize_session=False)
+    
+    session.commit()
 
+@event.listens_for(Follower, 'after_delete')
+def decrement_follower_count(mapper, connection, target):
+    session = Session(bind=connection)
+    
+    session.query(User).filter(User.id == target.followed_id).update({
+        User.follower_count: User.follower_count - 1
+    }, synchronize_session=False)
+    
+    session.query(User).filter(User.id == target.follower_id).update({
+        User.following_count: User.following_count - 1
+    }, synchronize_session=False)
+    
+    session.commit()
+
+    
 class SkillList(Base):
     __tablename__ = "skill_list"
 
@@ -61,3 +97,5 @@ class Skill(Base):
     skill_name = Column(String(31), unique=False)
 
     skill_list = relationship('SkillList', back_populates='skill', cascade='all, delete-orphan')
+
+
