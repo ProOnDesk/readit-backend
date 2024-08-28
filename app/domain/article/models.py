@@ -108,7 +108,7 @@ class ArticlePurchase(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     user_id = Column(Integer, ForeignKey('users.id'), nullable=False)
     article_id = Column(Integer, ForeignKey('articles.id'), nullable=False)
-    # Ensure that the combination of user_id and article_id is unique
+    
     __table_args__ = (
         UniqueConstraint('user_id', 'article_id', name='uix_user_article'),
     )
@@ -162,7 +162,6 @@ def set_unique_slug(mapper, connection, target):
         if session:
             target.slug = unique_slug(session, base_slug, Article)
             
-# Event listeners for ArticleComment model
 @event.listens_for(ArticleComment, 'after_insert')
 @event.listens_for(ArticleComment, 'after_update')
 @event.listens_for(ArticleComment, 'after_delete')
@@ -170,16 +169,13 @@ def update_article_rating_on_comment_change(mapper, connection, target):
     print('update')
     session = Session(bind=connection)
     
-    # Calculate new rating and rating count for the affected article
     article_id = target.article_id
     new_rating = article_avg_rating(db=session, article_id=article_id)
     new_rating_count = count_article_ratings(db=session, article_id=article_id)
     
-    # Update the article's rating and rating count
     session.query(Article).filter(Article.id == article_id).update({
         Article.rating: new_rating,
         Article.rating_count: new_rating_count
     }, synchronize_session=False)
     
-    # Commit changes
     session.commit()

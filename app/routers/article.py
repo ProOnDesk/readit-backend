@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status, File, UploadFile, Form
+from fastapi import APIRouter, Depends, HTTPException, status, File, UploadFile, Form, Query
 from sqlalchemy.orm import Session
 from app.domain.article import schemas, service, models
 from app.dependencies import get_db, authenticate, Tokens, DefaultResponseModel
@@ -105,6 +105,10 @@ async def get_articles(sort_order: Union[None, Literal['asc', 'desc']] = None, d
     db_articles = service.get_articles(db=db, sort_order=sort_order)
     return paginate(db_articles)
 
+@router.get('/search', status_code=status.HTTP_200_OK)
+async def search_article_by_title_and_summary(value: str = "", tags: list[str] = Query(default=[]), db: Session = Depends(get_db)) -> Page[schemas.ResponseArticle]:
+    db_articles = service.search_articles(db=db, value=value, tags=tags)
+    return paginate(db_articles)
 
 @router.get('/detail/id/{article_id}', status_code=status.HTTP_200_OK)
 async def get_detail_article_by_id(article_id: int, user_id: Annotated[int, Depends(authenticate)], db: Session = Depends(get_db)) -> schemas.ResponseArticleDetail:
