@@ -230,13 +230,13 @@ def retrieve_tokens(
     if token.access_token == "None":
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail='Invalid credentials'
+            detail='Niepoprawne dane'
         )
     
     if token.refresh_token == "None":
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail='Invalid credentials'
+            detail='Niepoprawne dane'
         )
 
 
@@ -265,7 +265,7 @@ def retrieve_access_token(
     if token.access_token == "None":
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail='Invalid credentials'
+            detail='Niepoprawne dane'
         )
 
     decoded_access_token = jwt.decode(token.access_token, SECRET_KEY, algorithms=[ENCRYPTION_ALGORITHM])
@@ -286,7 +286,7 @@ def retrieve_refresh_token(
     if token.refresh_token == "None":
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail='Invalid credentials'
+            detail='Niepoprawne dane'
         )
     
     decoded_refresh_token = jwt.decode(token.refresh_token, SECRET_KEY, algorithms=[ENCRYPTION_ALGORITHM])
@@ -315,7 +315,7 @@ def validate_credentials(
     if not (user := get_user_by_email_and_password(db, form_data.email, form_data.password)):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail='Invalid credentials'
+            detail='Niepoprawne dane'
         )
 
     # Attempt creating the token
@@ -345,7 +345,7 @@ def authenticate(
     if not get_user(db, access_token.user_id):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail='Invalid credentials'
+            detail='Niepoprawne dane'
         )
 
     return access_token.user_id
