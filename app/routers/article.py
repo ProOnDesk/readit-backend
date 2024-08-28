@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status, File, UploadFile, Form
+from fastapi import APIRouter, Depends, HTTPException, status, File, UploadFile, Form, Query
 from sqlalchemy.orm import Session
 from app.domain.article import schemas, service, models
 from app.dependencies import get_db, authenticate, Tokens, DefaultResponseModel
@@ -77,7 +77,6 @@ async def create_article(
 
             
         db_article = service.create_article(db=db, article=article, user_id=user_id, title_image=title_image_url)
-        db_article.calculate_rating(db=db)
 
         
         return db_article
@@ -104,9 +103,12 @@ async def create_article(
 async def get_articles(sort_order: Union[None, Literal['asc', 'desc']] = None, db: Session = Depends(get_db)) -> Page[schemas.ResponseArticle]:
     
     db_articles = service.get_articles(db=db, sort_order=sort_order)
-    [article.calculate_rating(db=db) for article in db_articles]
     return paginate(db_articles)
 
+@router.get('/search', status_code=status.HTTP_200_OK)
+async def search_article_by_title_and_summary(value: str = "", tags: list[str] = Query(default=[]), db: Session = Depends(get_db)) -> Page[schemas.ResponseArticle]:
+    db_articles = service.search_articles(db=db, value=value, tags=tags)
+    return paginate(db_articles)
 
 @router.get('/detail/id/{article_id}', status_code=status.HTTP_200_OK)
 async def get_detail_article_by_id(article_id: int, user_id: Annotated[int, Depends(authenticate)], db: Session = Depends(get_db)) -> schemas.ResponseArticleDetail:
@@ -122,7 +124,6 @@ async def get_detail_article_by_id(article_id: int, user_id: Annotated[int, Depe
     db.add(db_article)
     db.commit()
     db.refresh(db_article)
-    db_article.calculate_rating(db=db)
     
     return db_article
 
@@ -140,7 +141,6 @@ async def get_detail_article_by_slug_title(slug: schemas.Slug , user_id: Annotat
     db.add(db_article)
     db.commit()
     db.refresh(db_article)
-    db_article.calculate_rating(db=db)
 
     return db_article
 
@@ -155,7 +155,6 @@ async def get_article_by_id(article_id: int, db: Session = Depends(get_db)) -> s
     db.add(db_article)
     db.commit()
     db.refresh(db_article)
-    db_article.calculate_rating(db=db)
 
     return db_article
 
@@ -169,7 +168,6 @@ async def get_article_by_slug_title(slug: schemas.Slug, db: Session = Depends(ge
     db.add(db_article)
     db.commit()
     db.refresh(db_article)
-    db_article.calculate_rating(db=db)
 
     return db_article
 
@@ -211,13 +209,11 @@ async def delete_comment_by_article_id(article_id: int, user_id: Annotated[int, 
 @router.post('/wish-list/add/{article_id}', status_code=status.HTTP_200_OK)
 async def add_article_to_wish_list(article_id: int, user_id: Annotated[int, Depends(authenticate)], db: Session = Depends(get_db)) -> schemas.ResponseWishList:
     db_wish_list = service.create_wish_list(db=db, article_id=article_id, user_id=user_id)
-    db_wish_list.article.calculate_rating(db=db)
     return db_wish_list
 
 @router.get('/wish-list/all/me', status_code=status.HTTP_200_OK)
 async def get_articles_from_wish_list(user_id: Annotated[int, Depends(authenticate)], sort_order: Union[None, Literal['asc', 'desc']] = None, db: Session = Depends(get_db)) ->Page[schemas.ResponseWishList]:
     db_wish_list = service.get_wish_list_by_user_id(db=db, user_id=user_id, sort_order=sort_order)
-    [wish.article.calculate_rating(db=db) for wish in db_wish_list]
     return paginate(db_wish_list)
 
 @router.delete('/wish-list/delete/{article_id}', status_code=status.HTTP_200_OK)
@@ -274,7 +270,6 @@ async def get_bought_articles(user_id: Annotated[int, Depends(authenticate)], db
     try:
         purchased_articles = service.get_purchased_articles_by_user_id(db=db, user_id=user_id)
         
-        [purchased_articles.article.calculate_rating(db=db) for purchased_articles in purchased_articles]
 
         if not purchased_articles:
             raise HTTPException(

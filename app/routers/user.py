@@ -7,7 +7,7 @@ from app.domain.user.service import ( create_user, hash_password,
     get_user_by_email, get_user, create_follow, get_user_skills,
     get_follow_by_both_ids, delete_follow, get_follows_amount, verify_password,
     get_skill_by_skill_name, create_skill, create_skill_list_element,
-    delete_skill_list_element
+    delete_skill_list_element, get_top_users_by_most_articles, get_top_users_by_most_followers, search_users_by_first_name_and_last_name
 )
 from app.domain.article.service import (
     get_articles_by_user_id
@@ -18,6 +18,7 @@ from pydantic import BaseModel
 from uuid import uuid4
 import jwt
 import re
+from fastapi_pagination import Page, paginate
 
 router = APIRouter(
     prefix="/user",
@@ -169,7 +170,8 @@ async def get_user_by_access_token(
     
     user.follower_count = get_follows_amount(db, user.id)
     db.commit()
-
+    
+ 
     return {
         "id": user.id,
         "email": user.email,
@@ -214,6 +216,7 @@ async def get_user_by_user_id(
     user.follower_count = get_follows_amount(db, user.id)
     db.commit()
     
+
     output = {
         "id": user.id,
         "email": user.email,
@@ -280,6 +283,7 @@ async def modify_user(
         user.last_name = changes.last_name
 
     db.commit()
+    
 
     return {
         "id": user.id,
@@ -351,7 +355,7 @@ async def modify_avatar(
     
     user.avatar = f"{IMAGE_URL}{file.filename}"
     db.commit()
-    
+
     return {
         "id": user.id,
         "email": user.email,
@@ -396,6 +400,7 @@ async def modify_background_image(
     user.background_image = f"{IMAGE_URL}{file.filename}"
     db.commit()
     
+
     return {
         "id": user.id,
         "email": user.email,
@@ -432,7 +437,8 @@ async def add_skill(
         skill = create_skill(db, body.skill_name)
 
     create_skill_list_element(db, user_id, skill.id)
-     
+    
+
     return {
         "id": user.id,
         "email": user.email,
@@ -463,7 +469,7 @@ async def remove_skill(
         )
     
     delete_skill_list_element(db, skill_id)
-     
+
     return {
         "id": user.id,
         "email": user.email,
@@ -479,7 +485,52 @@ async def remove_skill(
         "article_count": len(user.articles),
         "skill_list": get_user_skills(db, user_id)
     }
+
+@router.get("/articles/top", status_code=status.HTTP_200_OK)
+async def get_users_with_most_articles(db: Session = Depends(get_db)) -> Page[UserProfileById]:
+    top_users = get_top_users_by_most_articles(db=db)
     
+    output = []
+    for user in top_users:
+        output.append({
+            "id": user.id,
+            "sex": user.sex,
+            "avatar": user.avatar_url,
+            "background_image": user.background_image_url,
+            "description": user.description,
+            "short_description": user.short_description,
+            "follower_count": user.follower_count,
+            "first_name": user.first_name,
+            "last_name": user.last_name,
+            "article_count": user.article_count,
+            "articles": user.articles,
+            "skill_list": user.skills
+        })
+
+    return paginate(output)
+
+@router.get("/followers/top", status_code=status.HTTP_200_OK)
+async def get_users_with_most_followers(db: Session = Depends(get_db)) -> Page[UserProfileById]:
+    top_users = get_top_users_by_most_followers(db=db)
+    
+    output = []
+    for user in top_users:
+        output.append({
+            "id": user.id,
+            "sex": user.sex,
+            "avatar": user.avatar_url,
+            "background_image": user.background_image_url,
+            "description": user.description,
+            "short_description": user.short_description,
+            "follower_count": user.follower_count,
+            "first_name": user.first_name,
+            "last_name": user.last_name,
+            "article_count": user.article_count,
+            "articles": user.articles,
+            "skill_list": user.skills
+        })
+
+    return paginate(output)
 
 @router.post("/follow/{followed_id}", status_code=status.HTTP_201_CREATED)
 async def follow_user(
@@ -574,3 +625,26 @@ async def get_followers_amount(
     return {
         "follows_amount": follows_amount
     }
+
+@router.get('/search')
+async def search_user_by_first_and_name_last_name(value: str = "", db: Session = Depends(get_db)) -> Page[UserProfileById]:
+    users = search_users_by_first_name_and_last_name(db=db, value=value)
+    
+    output = []
+    for user in users:
+        output.append({
+            "id": user.id,
+            "sex": user.sex,
+            "avatar": user.avatar_url,
+            "background_image": user.background_image_url,
+            "description": user.description,
+            "short_description": user.short_description,
+            "follower_count": user.follower_count,
+            "first_name": user.first_name,
+            "last_name": user.last_name,
+            "article_count": user.article_count,
+            "articles": user.articles,
+            "skill_list": user.skills
+        })
+
+    return paginate(output)
