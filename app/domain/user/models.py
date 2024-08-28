@@ -68,7 +68,7 @@ def increment_follower_count(mapper, connection, target):
 @event.listens_for(Follower, 'after_delete')
 def decrement_follower_count(mapper, connection, target):
     session = Session(bind=connection)
-    print(1)
+
     session.query(User).filter(User.id == target.followed_id).update({
         User.follower_count: User.follower_count - 1
     }, synchronize_session=False)
