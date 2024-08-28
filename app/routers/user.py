@@ -167,10 +167,6 @@ async def get_user_by_access_token(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail='Invalid credentials'
         )
-    
-    user.follower_count = get_follows_amount(db, user.id)
-    db.commit()
-    
  
     return {
         "id": user.id,
@@ -213,9 +209,6 @@ async def get_user_by_user_id(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail='Invalid credentials'
         )
-    user.follower_count = get_follows_amount(db, user.id)
-    db.commit()
-    
 
     output = {
         "id": user.id,
@@ -615,15 +608,9 @@ async def get_followers_amount(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail='User with this id doesn\'t exist'
         )
-    
-    if (follows_amount := get_follows_amount(db, user.id)) == None: 
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail='User with this id doesn\'t existt'
-        )
-    
+
     return {
-        "follows_amount": follows_amount
+        "follows_amount": user.follower_count
     }
 
 @router.get('/search')
