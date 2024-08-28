@@ -141,20 +141,16 @@ def get_top_users_by_most_articles(db: Session):
     return query
 
 def search_users_by_first_name_and_last_name(db: Session, value: str):
-    # Split the input value into search terms
     search_terms = value.split()
     
-    # Initialize a list to store query results
     all_results = []
 
-    # Execute queries for each substring of each search term
     for term in search_terms:
         term_length = len(term)
         for i in range(1, term_length + 1):
             substring = term[:i]
             search_pattern = f"%{substring}%"
             
-            # Run the query for the current substring
             results = db.query(models.User).filter(
                 or_(
                     models.User.first_name.ilike(search_pattern),
@@ -162,19 +158,15 @@ def search_users_by_first_name_and_last_name(db: Session, value: str):
                 )
             ).all()
             
-            # Add the results to the list
             all_results.extend(results)
-    print(all_results)
-    # Count the occurrences of each user
+            
     user_counter = Counter(user.id for user in all_results)
     
-    # Create a list of users with their match counts
     users_with_counts = [
         (db.query(models.User).filter(models.User.id == user_id).one(), count)
         for user_id, count in user_counter.items()
     ]
     
-    # Sort by match count in descending order
     sorted_users = sorted(users_with_counts, key=lambda x: x[1], reverse=True)
     
     return sorted_users
