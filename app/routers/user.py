@@ -41,18 +41,18 @@ async def register_user(
 ) -> DefaultResponseModel:
     
     if len(body.password) < 8:
-        raise HTTPException(status_code=400, detail="Password is too short")
+        raise HTTPException(status_code=400, detail="Hasło jest zbyt krótkie (min. 8 znaków)")
     
     if get_user_by_email(db, body.email):
-        raise HTTPException(status_code=400, detail="This email is already used")
+        raise HTTPException(status_code=400, detail="Ten email jest już w użytku")
     
      # Check if the password contains at least one capital letter, one number, and one special character
     if not re.search(r'[A-Z]', body.password):
-        raise HTTPException(status_code=400, detail="Password must contain at least one uppercase letter")
+        raise HTTPException(status_code=400, detail="Hasło musi zawierać conajmniej jedną duża literę")
     if not re.search(r'[0-9]', body.password):
-        raise HTTPException(status_code=400, detail="Password must contain at least one number")
+        raise HTTPException(status_code=400, detail="Hasło musi zawierać conajmniej jedną cyfrę")
     if not re.search(r'[\W_]', body.password):  # This checks for any non-alphanumeric character (special characters)
-        raise HTTPException(status_code=400, detail="Password must contain at least one special character")
+        raise HTTPException(status_code=400, detail="Hasło musi zawierać conajmniej jeden znak specjalny")
 
     try:
         create_user(db, UserCreate(
@@ -63,10 +63,10 @@ async def register_user(
             last_name=body.lastname
         ))
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Error while creating the user")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Wystąpił błąd poczas rejestrowania: błąd tworzenie użytkownika")
 
     await send_email(
-        'Email confirmation.',
+        'Potwierdź konto',
         body.email,
         {
             'link': f"http://127.0.0.1:3000/email-confirmation/?key={jwt.encode({'email': body.email}, SECRET_KEY, algorithm=ENCRYPTION_ALGORITHM)}"
@@ -85,16 +85,16 @@ async def confirm_user(
 ) -> DefaultResponseModel:
     decoded_user = jwt.decode(key, SECRET_KEY, algorithms=[ENCRYPTION_ALGORITHM])
     if not (current_user := get_user_by_email(db, decoded_user.get("email"))):
-        raise HTTPException(status_code=400, detail="User doesn\'t exist")
+        raise HTTPException(status_code=400, detail="Użytkownik nie istnieje")
     
     if current_user.is_active:
-        raise HTTPException(status_code=400, detail="User is already active")
+        raise HTTPException(status_code=400, detail="Użytkownik jest już aktywny")
 
     current_user.is_active = True
     db.commit()
 
     return {
-        "message": "Email confirmed"
+        "message": "Konto potwierdzone"
     }
 
 class EmailBody(BaseModel):
@@ -106,7 +106,7 @@ async def send_email_with_key_to_change_password(
     db: Session = Depends(get_db)
 ) -> DefaultResponseModel: 
     if not (user := get_user_by_email(db, body.email)):
-        raise HTTPException(status_code=404, detail='User with this email doesn\'t exist')
+        raise HTTPException(status_code=404, detail='Użytkownik nie istnieje')
     
     await send_email(
         'Password reset.',
@@ -133,27 +133,27 @@ async def change_password(
     decoded_email = jwt.decode(key, SECRET_KEY, algorithms=[ENCRYPTION_ALGORITHM])
 
     if not (current_user := get_user_by_email(db, decoded_email.get("email"))):
-        raise HTTPException(status_code=404, detail="User with this email doesn't exist")
+        raise HTTPException(status_code=404, detail="Użytkownik nie istnieje")
     
     if decoded_email.get('hashed_password') != current_user.hashed_password:
-        raise HTTPException(status_code=404, detail='This key doesn\'t work anymore')
+        raise HTTPException(status_code=404, detail='Ten link już nie istnieje')
     
     if len(body.password) < 8:
-        raise HTTPException(status_code=400, detail="Password is too short")
+        raise HTTPException(status_code=400, detail="Hasło jest zbyt krótkie (min. 8 znaków)")
     
-     # Check if the password contains at least one capital letter, one number, and one special character
+    # Check if the password contains at least one capital letter, one number, and one special character
     if not re.search(r'[A-Z]', body.password):
-        raise HTTPException(status_code=400, detail="Password must contain at least one uppercase letter")
+        raise HTTPException(status_code=400, detail="Hasło musi zawierać conajmniej jedną duża literę")
     if not re.search(r'[0-9]', body.password):
-        raise HTTPException(status_code=400, detail="Password must contain at least one number")
+        raise HTTPException(status_code=400, detail="Hasło musi zawierać conajmniej jedną cyfrę")
     if not re.search(r'[\W_]', body.password):  # This checks for any non-alphanumeric character (special characters)
-        raise HTTPException(status_code=400, detail="Password must contain at least one special character")
+        raise HTTPException(status_code=400, detail="Hasło musi zawierać conajmniej jeden znak specjalny")
 
     current_user.hashed_password = hash_password(body.password)
     db.commit()
 
     return {
-        "message": "Password changed"
+        "message": "Hasło zmienione"
     }
 
 @router.get("/get", status_code=status.HTTP_200_OK)
@@ -165,7 +165,7 @@ async def get_user_by_access_token(
     if not (user := get_user(db, user_id)):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail='Invalid credentials'
+            detail='Nieprawidłowe dane'
         )
  
     return {
@@ -207,7 +207,7 @@ async def get_user_by_user_id(
     if not (user := get_user(db, user_id)):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail='Invalid credentials'
+            detail='Nieprawidłowe dane'
         )
 
     output = {
@@ -254,7 +254,7 @@ async def modify_user(
     if not (user := get_user(db, user_id)):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail='User with this id doesn\'t exist'
+            detail='Użytkownik nie istnieje'
         )
     
     if changes.email:
@@ -304,7 +304,7 @@ async def modify_password(
     if not (user := get_user(db, user_id)):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail='User with this id doesn\'t exist'
+            detail='Użytkownik nie istnieje'
         )
     
     if verify_password(passwords.old_password, user.hashed_password):
@@ -314,11 +314,11 @@ async def modify_password(
     else:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail='User with this id doesn\'t exist'
+            detail='Użytkownik nie istnieje'
         )
     
     return {
-        'message': 'Password changed'
+        'message': 'Hasło zmienione'
     }
 
 @router.patch("/modify/avatar", status_code=status.HTTP_200_OK)
@@ -331,13 +331,13 @@ async def modify_avatar(
     if not (user := get_user(db, user_id)):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail='User with this id doesn\'t exist'
+            detail='Użytkownik nie istnieje'
         )
     
     if file.filename.split(".")[-1] not in ['img', 'png', 'jpg', 'jpeg']:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail='File with this format isn\'t accepted'
+            detail='Plik w tym formacie nie jest akceptowany'
         )
     
     file.filename = f'{uuid4()}.{file.filename.split(".")[-1]}'
@@ -375,13 +375,13 @@ async def modify_background_image(
     if not (user := get_user(db, user_id)):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail='User with this id doesn\'t exist'
+            detail='Użytkownik nie istnieje'
         )
     
     if file.filename.split(".")[-1] not in ['img', 'png', 'jpg', 'jpeg']:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail='File with this format isn\'t accepted'
+            detail='Plik w tym formacie nie jest akceptowany'
         )
     
     file.filename = f'{uuid4()}.{file.filename.split(".")[-1]}'
@@ -423,7 +423,7 @@ async def add_skill(
     if not (user := get_user(db, user_id)):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail='User with this id doesn\'t exist'
+            detail='Użytkownik nie istnieje'
         )
     
     if not (skill := get_skill_by_skill_name(db, body.skill_name)):
@@ -458,7 +458,7 @@ async def remove_skill(
     if not (user := get_user(db, user_id)):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail='User with this id doesn\'t exist'
+            detail='Użytkownik nie istnieje'
         )
     
     delete_skill_list_element(db, skill_id)
@@ -535,25 +535,25 @@ async def follow_user(
     if not (followed_user := get_user(db, followed_id)):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail='Followed user with this id doesn\'t exist'
+            detail='Obserwowany użytkownik nie istnieje'
         )
     
     if get_follow_by_both_ids(db, followed_id, user_id):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail='Such follow already exists'
+            detail='Użytkownik jest już obserwowany'
         )
     
     if user_id == followed_id:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail='You can\'t follow yourself'
+            detail='Nie możesz obserwować siebie'
         )
     
     if not (follow := create_follow(db, followed_id, user_id)):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail='Invalid data'
+            detail='Niepoprawne dane'
         )
     
     return {
@@ -574,25 +574,25 @@ async def unfollow_user(
     if not (followed_user := get_user(db, followed_id)):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail='Followed user with this id doesn\'t exist'
+            detail='Obserwowany użytkownik nie istnieje'
         )
     
     if user_id == followed_id:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail='You can\'t follow or unfollow yourself'
+            detail='Nie możesz obserwować siebie'
         )
     
     if not (follow := get_follow_by_both_ids(db, followed_id, user_id)):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail='Such follow doesn\'t exists'
+            detail='Nie istnieje taka obserwacja'
         )
     
     delete_follow(db, follow.id)
     
     return {
-        "message": "Unfollowed succesfully"
+        "message": "Odobserwowano"
     }
 
 class CheckFollowModel(BaseModel):
@@ -608,13 +608,13 @@ async def check_if_user_followes_another_user(
     if not (followed_user := get_user(db, followed_id)):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail='Followed user with this id doesn\'t exist'
+            detail='Obserwowany użytkownik nie istnieje'
         )
     
     if user_id == followed_id:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail='You can\'t follow or unfollow yourself'
+            detail='Nie możesz obserwować siebie'
         )
     
     if not (follow := get_follow_by_both_ids(db, followed_id, user_id)):
@@ -638,7 +638,7 @@ async def get_followers_amount(
     if not (user := get_user(db, followed_id)):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail='User with this id doesn\'t exist'
+            detail='Użytkownik nie istnieje'
         )
 
     return {
