@@ -334,7 +334,7 @@ async def modify_avatar(
             detail='Użytkownik nie istnieje'
         )
     
-    if file.filename.split(".")[-1] not in ['img', 'png', 'jpg', 'jpeg']:
+    if file.filename.split(".")[-1] not in ['img', 'png', 'jpg', 'jpeg', 'svg', 'gif']:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail='Plik w tym formacie nie jest akceptowany'
@@ -378,7 +378,7 @@ async def modify_background_image(
             detail='Użytkownik nie istnieje'
         )
     
-    if file.filename.split(".")[-1] not in ['img', 'png', 'jpg', 'jpeg']:
+    if file.filename.split(".")[-1] not in ['img', 'png', 'jpg', 'jpeg', 'svg', 'gif']:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail='Plik w tym formacie nie jest akceptowany'
