@@ -2,7 +2,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import case, func, or_
 from passlib.context import CryptContext
 from collections import Counter
-from typing import Literal, Optional
+from typing import Literal, Optional, List, Tuple
 from . import models, schemas
 
 pwd_context = CryptContext(schemes=['bcrypt'], deprecated='auto')
@@ -144,48 +144,43 @@ def search_users_by_first_name_and_last_name(
     db: Session,
     value: str,
     sort_order: Literal['asc', 'desc'] = 'desc',
-    sort_by: Literal['match_count', 'date', 'follower_count', 'article_count'] = 'date',
+    sort_by: Literal['match_count', 'follower_count', 'article_count'] = 'match_count',
     sex: Optional[str] = None
-) -> list[models.User]:
+) -> List[Tuple[models.User, int]]:
     search_terms = value.split()
+    all_results = []
 
-    conditions = []
     for term in search_terms:
         term_length = len(term)
         for i in range(1, term_length + 1):
             substring = term[:i]
             search_pattern = f"%{substring}%"
-            conditions.append(
+            
+            query = db.query(models.User).filter(
                 or_(
                     models.User.first_name.ilike(search_pattern),
                     models.User.last_name.ilike(search_pattern)
                 )
             )
+            
+            if sex:
+                query = query.filter(models.User.sex == sex)
+            
+            results = query.all()
+            all_results.extend(results)
 
-    subquery = db.query(
-        models.User.id,
-        func.count(case(
-            (models.User.first_name.ilike(search_pattern), 1),
-            (models.User.last_name.ilike(search_pattern), 1)
-)       ).label('match_count')
-    ).filter(or_(*conditions))
-
-    if sex:
-        subquery = subquery.filter(models.User.sex == sex)
-
-    subquery = subquery.group_by(models.User.id).subquery()
-
-    # Main query with sorting
-    query = db.query(models.User).join(subquery, models.User.id == subquery.c.id)
+    user_counter = Counter(user.id for user in all_results)
+    
+    users_with_counts = [
+        (db.query(models.User).filter(models.User.id == user_id).one(), count)
+        for user_id, count in user_counter.items()
+    ]
 
     if sort_by == 'match_count':
-        query = query.order_by(subquery.c.match_count.desc() if sort_order == 'desc' else subquery.c.match_count.asc())
-    elif sort_by == 'date':
-        query = query.order_by(models.User.created_at.desc() if sort_order == 'desc' else models.User.created_at.asc())
+        sorted_users = sorted(users_with_counts, key=lambda x: x[1], reverse=(sort_order == 'desc'))
     elif sort_by == 'follower_count':
-        query = query.order_by(models.User.follower_count.desc() if sort_order == 'desc' else models.User.follower_count.asc())
+        sorted_users = sorted(users_with_counts, key=lambda x: x[0].follower_count, reverse=(sort_order == 'desc'))
     elif sort_by == 'article_count':
-        query = query.order_by(models.User.article_count.desc() if sort_order == 'desc' else models.User.article_count.asc())
-
-    users = query.all()
-    return users
+        sorted_users = sorted(users_with_counts, key=lambda x: x[0].article_count, reverse=(sort_order == 'desc'))
+    
+    return sorted_users 

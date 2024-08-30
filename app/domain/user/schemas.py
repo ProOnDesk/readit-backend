@@ -57,7 +57,23 @@ class User(UserBase):
 
     class Config:
         from_attributes = True
-
+     
+        
+class UserPublic(BaseModel): 
+    id: int
+    sex: str
+    avatar: str | None = "media/uploads/user/default.jpg"
+    background_image: str | None = "media/uploads/user/default_bg_img.png"
+    short_description: str
+    follower_count: int
+    first_name: str
+    last_name: str
+    article_count: int
+    
+class SearchUserPublic(UserPublic):
+    match_count: int
+    
+    
 class Follower(BaseModel):
     id: int
     follower_id: int

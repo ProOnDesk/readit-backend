@@ -13,7 +13,7 @@ from app.domain.article.service import (
     get_articles_by_user_id
 )
 from app.domain.article.schemas import ResponseArticle
-from app.domain.user.schemas import UserCreate, UserProfile, Follower, ReturnSkillListElement
+from app.domain.user.schemas import UserCreate, UserProfile, Follower,  UserPublic, SearchUserPublic, ReturnSkillListElement
 from pydantic import BaseModel
 from uuid import uuid4
 import jwt
@@ -190,8 +190,8 @@ class UserProfileById(BaseModel):
     sex: str
     avatar: str
     background_image: str
-    description: str
-    short_description: str
+    description: str | None = None
+    short_description: str | None = None
     follower_count: int
     first_name: str
     last_name: str
@@ -480,14 +480,13 @@ async def remove_skill(
     }
 
 @router.get("/articles/top", status_code=status.HTTP_200_OK)
-async def get_users_with_most_articles(db: Session = Depends(get_db)) -> Page[UserProfileById]:
+async def get_users_with_most_articles(db: Session = Depends(get_db)) -> Page[UserPublic]:
     top_users = get_top_users_by_most_articles(db=db)
     
     output = []
     for user in top_users:
         output.append({
             "id": user.id,
-            "email": user.email,
             "sex": user.sex,
             "avatar": user.avatar_url,
             "background_image": user.background_image_url,
@@ -497,14 +496,12 @@ async def get_users_with_most_articles(db: Session = Depends(get_db)) -> Page[Us
             "first_name": user.first_name,
             "last_name": user.last_name,
             "article_count": user.article_count,
-            "articles": user.articles,
-            "skill_list": user.skills
         })
 
     return paginate(output)
 
 @router.get("/followers/top", status_code=status.HTTP_200_OK)
-async def get_users_with_most_followers(db: Session = Depends(get_db)) -> Page[UserProfileById]:
+async def get_users_with_most_followers(db: Session = Depends(get_db)) -> Page[UserPublic]:
     top_users = get_top_users_by_most_followers(db=db)
     
     output = []
@@ -519,9 +516,7 @@ async def get_users_with_most_followers(db: Session = Depends(get_db)) -> Page[U
             "follower_count": user.follower_count,
             "first_name": user.first_name,
             "last_name": user.last_name,
-            "article_count": user.article_count,
-            "articles": user.articles,
-            "skill_list": user.skills
+            "article_count": user.article_count
         })
 
     return paginate(output)
@@ -651,10 +646,10 @@ async def search_user_by_first_and_last_name(
     
     value: str = "",
     sort_order: Literal['asc', 'desc'] = 'desc',
-    sort_by: Literal['match_count', 'date', 'follower_count', 'article_count'] = 'match_count',
+    sort_by: Literal['match_count', 'follower_count', 'article_count'] = 'match_count',
     sex: Optional[str] = None,
     db: Session = Depends(get_db)
-) -> Page:
+) -> Page[SearchUserPublic]:
     """
     Searches users by their first and last name based on the provided value query.
     The `match_count` represents the number of matches found for each user in the search results.
@@ -668,7 +663,7 @@ async def search_user_by_first_and_last_name(
     )
     
     output = []
-    for user, match_count, in users:
+    for user, match_count in users:
         output.append({
             "id": user.id,
             "sex": user.sex,
@@ -680,7 +675,6 @@ async def search_user_by_first_and_last_name(
             "first_name": user.first_name,
             "last_name": user.last_name,
             "article_count": user.article_count,
-            "articles": user.articles,
             "match_count": match_count
  
         })
