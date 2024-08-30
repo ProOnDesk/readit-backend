@@ -66,7 +66,7 @@ def get_follows_amount(db: Session, followed_id: int):
     return amount
 
 def get_follow_by_both_ids(db: Session, followed_user_id: int, follower_user_id: int):
-    return db.query(models.Follower).filter(models.Follower.followed_id==followed_user_id and models.Follower.follower_id==follower_user_id).first()
+    return db.query(models.Follower).filter(models.Follower.followed_id==followed_user_id).filter(models.Follower.follower_id==follower_user_id).first()
 
 def create_follow(db: Session, followed_user_id: int, follower_user_id: int):
     db_follower = models.Follower(
