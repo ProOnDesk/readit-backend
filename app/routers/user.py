@@ -487,6 +487,7 @@ async def get_users_with_most_articles(db: Session = Depends(get_db)) -> Page[Us
     for user in top_users:
         output.append({
             "id": user.id,
+            "email": user.email,
             "sex": user.sex,
             "avatar": user.avatar_url,
             "background_image": user.background_image_url,

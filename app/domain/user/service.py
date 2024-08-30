@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Session
-from sqlalchemy import func, or_
+from sqlalchemy import case, func, or_
 from passlib.context import CryptContext
 from collections import Counter
 from typing import Literal, Optional
@@ -165,11 +165,9 @@ def search_users_by_first_name_and_last_name(
     subquery = db.query(
         models.User.id,
         func.count(case(
-            [
-                (models.User.first_name.ilike(search_pattern), 1),
-                (models.User.last_name.ilike(search_pattern), 1)
-            ]
-        )).label('match_count')
+            (models.User.first_name.ilike(search_pattern), 1),
+            (models.User.last_name.ilike(search_pattern), 1)
+)       ).label('match_count')
     ).filter(or_(*conditions))
 
     if sex:
