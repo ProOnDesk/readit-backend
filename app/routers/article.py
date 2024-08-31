@@ -247,9 +247,16 @@ async def add_article_to_wish_list(article_id: int, user_id: Annotated[int, Depe
 async def is_article_in_wish_list(article_id: int, user_id: Annotated[int, Depends(authenticate)], db: Session = Depends(get_db)):
     return service.has_user_article_in_wish_list(db=db, user_id=user_id, article_id=article_id)
 
-@router.get('/wish-list/change/{article_id}')
+@router.post('/wish-list/change/{article_id}')
 async def change_article_is_in_wish_list_or_not(article_id: int, user_id: Annotated[int, Depends(authenticate)], db : Session = Depends(get_db)):
-    pass
+    
+    if service.has_user_article_in_wish_list(db=db, user_id=user_id, article_id=article_id):
+        wish_list = service.get_wish_list_by_user_id_and_article_id(db=db, user_id=user_id, article_id=article_id)
+        service.delete_wish_list(db=db, wish_list=wish_list)
+        raise HTTPException(status_code=status.HTTP_200_OK, detail="Deleted article in wish list")
+    
+    service.create_wish_list(db=db, article_id=article_id, user_id=user_id)
+    raise HTTPException(status_code=status.HTTP_200_OK, detail="Added article in wish list")
 
 @router.get('/wish-list/all/me', status_code=status.HTTP_200_OK)
 async def get_articles_from_wish_list(user_id: Annotated[int, Depends(authenticate)], sort_order: Union[None, Literal['asc', 'desc']] = None, db: Session = Depends(get_db)) ->Page[schemas.ResponseWishList]:
