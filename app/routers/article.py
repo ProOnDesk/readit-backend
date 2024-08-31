@@ -243,6 +243,14 @@ async def add_article_to_wish_list(article_id: int, user_id: Annotated[int, Depe
     db_wish_list = service.create_wish_list(db=db, article_id=article_id, user_id=user_id)
     return db_wish_list
 
+@router.get('/wish-list/is/{article_id}')
+async def is_article_in_wish_list(article_id: int, user_id: Annotated[int, Depends(authenticate)], db: Session = Depends(get_db)):
+    return service.has_user_article_in_wish_list(db=db, user_id=user_id, article_id=article_id)
+
+@router.get('/wish-list/change/{article_id}')
+async def change_article_is_in_wish_list_or_not(article_id: int, user_id: Annotated[int, Depends(authenticate)], db : Session = Depends(get_db)):
+    pass
+
 @router.get('/wish-list/all/me', status_code=status.HTTP_200_OK)
 async def get_articles_from_wish_list(user_id: Annotated[int, Depends(authenticate)], sort_order: Union[None, Literal['asc', 'desc']] = None, db: Session = Depends(get_db)) ->Page[schemas.ResponseWishList]:
     db_wish_list = service.get_wish_list_by_user_id(db=db, user_id=user_id, sort_order=sort_order)
@@ -318,3 +326,7 @@ async def get_bought_articles(user_id: Annotated[int, Depends(authenticate)], db
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, 
             detail=f"An unexpected error occurred: {str(e)}"
         )
+        
+@router.get('/is-bought/{article_id}')
+def is_article_bought(article_id: int, user_id: Annotated[int, Depends(authenticate)], db: Session = Depends(get_db)):
+    return service.has_user_purchased_article(db=db, user_id=user_id, article_id=article_id)

@@ -143,11 +143,8 @@ def get_wish_list_by_user_id_and_article_id(db: Session, user_id: int, article_i
                                                     models.WishList.article_id == article_id).first()
     return db_wish_list
 
-def is_article_purchased_by_user(db: Session, user_id: int, article_id: int) -> bool:
-    return db.query(models.ArticlePurchase).filter(
-        models.ArticlePurchase.user_id == user_id,
-        models.ArticlePurchase.article_id == article_id,
-    ).first()
+def has_user_article_in_wish_list(db: Session, user_id: int, article_id: int) -> bool:
+    return db.query(models.WishList).filter_by(user_id=user_id).filter_by(article_id=article_id).first() is not None
 
 def add_purchased_article(db: Session, user_id: int, article_id: int) -> None:
     purchase = models.ArticlePurchase(user_id=user_id, article_id=article_id)
