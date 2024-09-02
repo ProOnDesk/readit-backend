@@ -122,7 +122,7 @@ class ArticlePurchase(Base):
 class ArticleContentElement(Base):
     __tablename__ = "article_content_elements"
     id = Column(Integer, primary_key=True, autoincrement=True)
-    article_id = Column(Integer, ForeignKey('articles.id', ondelete='CASCADE'), nullable=False)
+    article_id = Column(Integer, ForeignKey('articles.id', ondelete='CASCADE'))
     content_type = Column(String(50), nullable=False)
     content = Column(Text, nullable=False)
     order = Column(Integer, nullable=False)
@@ -167,7 +167,6 @@ def set_unique_slug(mapper, connection, target):
 @event.listens_for(ArticleComment, 'after_update')
 @event.listens_for(ArticleComment, 'after_delete')
 def update_article_rating_on_comment_change(mapper, connection, target):
-    print('update')
     session = Session(bind=connection)
     
     article_id = target.article_id

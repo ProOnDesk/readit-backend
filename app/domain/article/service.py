@@ -20,12 +20,10 @@ def get_article_by_slug(db: Session, slug_title: str):
     sql = text("SELECT * FROM articles WHERE slug = :slug_title")
     result = db.execute(sql, {'slug_title': slug_title})
     article = result.fetchone()
-    print(article)
     
     sql = text("SELECT * FROM articles")
     result = db.execute(sql, {'slug_title': slug_title})
     article = result.fetchone()
-    print(article.slug)
     return db.query(models.Article).filter(models.Article.slug == slug_title).first()
 
 def get_article_by_id(db: Session, article_id: int) -> models.Article:
@@ -47,7 +45,7 @@ def create_article(db: Session, article: Union[schemas.CreateArticle, dict], use
     
     tags = [get_or_create(db, models.Tag, value=tag['value']) for tag in tag_dicts]
     if len(tags) > 3:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Too many tags. Maximum allowed is 3.")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Zbyt wiele tagów. Maksymalnie dozwolone jest 3.")
     db_article = models.Article(**article_dict, author_id=user_id, tags=tags, title_image=title_image)
     db_content_elements = [models.ArticleContentElement(article_id=db_article.id, order = order + 1, **content_element) for order, content_element in enumerate(content_elements_dicts, start=0)]
     
