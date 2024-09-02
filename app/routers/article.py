@@ -18,9 +18,6 @@ def check_user_has_permission_for_article(
     article_id: int,
     user_id: int,
 ) -> None:
-    if service.is_article_free(db=db, article_id=article_id):
-        return
-    
     if service.is_user_author_of_article(db=db, user_id=user_id, article_id=article_id):
         return
         
@@ -262,10 +259,10 @@ async def change_article_is_in_wish_list_or_not(article_id: int, user_id: Annota
     if service.has_user_article_in_wish_list(db=db, user_id=user_id, article_id=article_id):
         wish_list = service.get_wish_list_by_user_id_and_article_id(db=db, user_id=user_id, article_id=article_id)
         service.delete_wish_list(db=db, wish_list=wish_list)
-        raise HTTPException(status_code=status.HTTP_200_OK, detail="Deleted article in wish list")
+        raise HTTPException(status_code=status.HTTP_200_OK, detail="Usunięto artykuł z ulubionych.")
     
     service.create_wish_list(db=db, article_id=article_id, user_id=user_id)
-    raise HTTPException(status_code=status.HTTP_200_OK, detail="Added article in wish list")
+    raise HTTPException(status_code=status.HTTP_200_OK, detail="Dodano artykuł do ulubionych")
 
 @router.get('/wish-list/all/me', status_code=status.HTTP_200_OK)
 async def get_articles_from_wish_list(user_id: Annotated[int, Depends(authenticate)], sort_order: Union[None, Literal['asc', 'desc']] = None, db: Session = Depends(get_db)) ->Page[schemas.ResponseWishList]:
@@ -282,13 +279,13 @@ async def delete_article_from_wish_list(article_id:int, user_id: Annotated[int, 
     if db_wish_list is None:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, 
-            detail="Ten artykuł nie znajduje się na Twojej liście życzeń."
+            detail="Ten artykuł nie znajduje się w ulubionych."
         )
     
     service.delete_wish_list(db=db, wish_list=db_wish_list)
     raise HTTPException(
         status_code=status.HTTP_200_OK, 
-        detail="Artykuł został pomyślnie usunięty z listy życzeń."
+        detail="Artykuł został pomyślnie usunięty z ulubionych."
     )
 
 @router.post('/buy/{article_id}')
