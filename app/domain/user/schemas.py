@@ -70,9 +70,6 @@ class UserPublic(BaseModel):
     last_name: str
     article_count: int
     
-class SearchUserPublic(UserPublic):
-    match_count: int
-    
     
 class Follower(BaseModel):
     id: int

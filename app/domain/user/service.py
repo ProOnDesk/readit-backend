@@ -144,43 +144,33 @@ def search_users_by_first_name_and_last_name(
     db: Session,
     value: str,
     sort_order: Literal['asc', 'desc'] = 'desc',
-    sort_by: Literal['match_count', 'follower_count', 'article_count'] = 'match_count',
+    sort_by: Literal['follower_count', 'article_count'] = 'follower_count',
     sex: Optional[str] = None
 ) -> List[Tuple[models.User, int]]:
-    search_terms = value.split()
-    all_results = []
 
-    for term in search_terms:
-        term_length = len(term)
-        for i in range(1, term_length + 1):
-            substring = term[:i]
-            search_pattern = f"%{substring}%"
-            
-            query = db.query(models.User).filter(
-                or_(
-                    models.User.first_name.ilike(search_pattern),
-                    models.User.last_name.ilike(search_pattern)
-                )
+    query = db.query(models.User)
+    
+    if value:
+        serach_pattern = f"%{value}%"
+        query = query.filter(
+            or_(
+                models.User.first_name.ilike(serach_pattern),
+                models.User.last_name.ilike(serach_pattern)
             )
-            
-            if sex:
-                query = query.filter(models.User.sex == sex)
-            
-            results = query.all()
-            all_results.extend(results)
-
-    user_counter = Counter(user.id for user in all_results)
+        )
     
-    users_with_counts = [
-        (db.query(models.User).filter(models.User.id == user_id).one(), count)
-        for user_id, count in user_counter.items()
-    ]
-
-    if sort_by == 'match_count':
-        sorted_users = sorted(users_with_counts, key=lambda x: x[1], reverse=(sort_order == 'desc'))
-    elif sort_by == 'follower_count':
-        sorted_users = sorted(users_with_counts, key=lambda x: x[0].follower_count, reverse=(sort_order == 'desc'))
-    elif sort_by == 'article_count':
-        sorted_users = sorted(users_with_counts, key=lambda x: x[0].article_count, reverse=(sort_order == 'desc'))
+    if sex:
+        query.filter(models.User.sex == sex)
     
-    return sorted_users 
+    if sort_by == 'follower_count':
+        sort_column = models.User.follower_count
+    else:
+        sort_column = models.User.article_count
+        
+    if sort_order == 'asc':
+        query = query.order_by(sort_column.asc())
+    else:
+        query = query.order_by(sort_column.desc())
+
+    return query.all()
+    
