@@ -24,14 +24,14 @@ def check_user_has_permission_for_article(
     if not service.has_user_purchased_article(db=db, user_id=user_id, article_id=article_id):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Nie zakupiłeś tego artykułu"
+            detail="Nie zakupiłeś tego artykułu."
         )
     
 def check_file_if_image(file: UploadFile) -> None:
     if file.filename.split(".")[-1] not in ['img', 'png', 'jpg', 'jpeg']:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail='Akceptowane są tylko pliki o formatach img, png, jpg i jpeg'
+            detail='Akceptowane są tylko pliki o formatach img, png, jpg i jpeg.'
         )
         
 @router.post('/', status_code=status.HTTP_201_CREATED)
@@ -59,7 +59,7 @@ async def create_article(
             if len(images_for_content_type_image) != len(image_content_elements):
                     raise HTTPException(
                         status_code=status.HTTP_400_BAD_REQUEST,
-                        detail='Number of images does not match number of content elements'
+                        detail='Number of images does not match number of content elements.'
                     )
             for image, content_element in zip(images_for_content_type_image, image_content_elements):
                 check_file_if_image(image)
@@ -72,7 +72,7 @@ async def create_article(
             if len(image_content_elements) != 0:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    detail='Number of images does not match number of content elements'
+                    detail='Number of images does not match number of content elements.'
                     )
 
             
@@ -147,7 +147,7 @@ async def get_detail_article_by_id(article_id: int, user_id: Annotated[int, Depe
     
     db_article = service.get_article_by_id(db=db, article_id=article_id)
     if db_article is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Artykuł nie istnieje")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Artykuł nie istnieje.")
     
     check_user_has_permission_for_article(db=db, article_id=db_article.id, user_id=user_id)
     
@@ -164,7 +164,7 @@ async def get_detail_article_by_slug_title(slug: schemas.Slug , user_id: Annotat
     
     db_article = service.get_article_by_slug(db=db, slug_title=slug.slug)
     if db_article is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Artykuł nie istnieje")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Artykuł nie istnieje.")
     
     check_user_has_permission_for_article(db=db, article_id=db_article.id, user_id=user_id)
 
@@ -180,7 +180,7 @@ async def get_detail_article_by_slug_title(slug: schemas.Slug , user_id: Annotat
 async def get_article_by_id(article_id: int, db: Session = Depends(get_db)) -> schemas.ResponseArticle:
     db_article = service.get_article_by_id(db=db, article_id=article_id)
     if db_article is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Artykuł nie istnieje")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Artykuł nie istnieje.")
     
     db_article.view_count += 1
     
@@ -194,7 +194,7 @@ async def get_article_by_id(article_id: int, db: Session = Depends(get_db)) -> s
 async def get_article_by_slug_title(slug: schemas.Slug, db: Session = Depends(get_db)) -> schemas.ResponseArticle:
     db_article = service.get_article_by_slug(db=db, slug_title=slug.slug)
     if db_article is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Artykuł nie istnieje")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Artykuł nie istnieje.")
     print(db_article)
     db_article.view_count += 1
     db.add(db_article)
@@ -213,7 +213,7 @@ async def delete_article_by_id(article_id: int, user_id: Annotated[int, Depends(
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED)
     
     service.delete_article(db=db, db_article=db_article)
-    raise HTTPException(status_code=status.HTTP_200_OK, detail="Usunięto pomyślnie artykuł")
+    raise HTTPException(status_code=status.HTTP_200_OK, detail="Usunięto pomyślnie artykuł.")
 
 @router.get('/comment/all/{article_id}', status_code=status.HTTP_200_OK)
 async def get_comments_by_article_id(article_id: int, sort_order: Union[None, Literal['asc', 'desc']] = None, db: Session = Depends(get_db)) -> Page[schemas.ResponseCommentArticle]:
@@ -262,7 +262,7 @@ async def change_article_is_in_wish_list_or_not(article_id: int, user_id: Annota
         raise HTTPException(status_code=status.HTTP_200_OK, detail="Usunięto artykuł z ulubionych.")
     
     service.create_wish_list(db=db, article_id=article_id, user_id=user_id)
-    raise HTTPException(status_code=status.HTTP_200_OK, detail="Dodano artykuł do ulubionych")
+    raise HTTPException(status_code=status.HTTP_200_OK, detail="Dodano artykuł do ulubionych.")
 
 @router.get('/wish-list/all/me', status_code=status.HTTP_200_OK)
 async def get_articles_from_wish_list(user_id: Annotated[int, Depends(authenticate)], sort_order: Union[None, Literal['asc', 'desc']] = None, db: Session = Depends(get_db)) ->Page[schemas.ResponseWishList]:
@@ -273,7 +273,7 @@ async def get_articles_from_wish_list(user_id: Annotated[int, Depends(authentica
 async def delete_article_from_wish_list(article_id:int, user_id: Annotated[int, Depends(authenticate)], db: Session = Depends(get_db)):
     db_article = db.query(models.Article).filter(models.Article.id == article_id).first()
     if db_article is None:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Artykuł nie istnieje")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Artykuł nie istnieje.")
     
     db_wish_list = service.get_wish_list_by_user_id_and_article_id(db=db, user_id=user_id, article_id=article_id)
     if db_wish_list is None:
@@ -307,7 +307,7 @@ async def buy_article_by_id(article_id: int, user_id: Annotated[int, Depends(aut
         if not article:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND, 
-                detail="Nie znaleziono artykułu"
+                detail="Nie znaleziono artykułu."
             )
             
         service.add_purchased_article(db=db, user_id=user_id, article_id=article_id)
@@ -330,7 +330,7 @@ async def get_bought_articles(user_id: Annotated[int, Depends(authenticate)], db
         if not purchased_articles:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail="Nie znaleziono zakupionych artykułów"
+                detail="Nie znaleziono zakupionych artykułów."
             )
         
         return paginate(purchased_articles)
