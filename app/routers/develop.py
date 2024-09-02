@@ -48,7 +48,7 @@ def seed_data(
         db.commit()
         
         tags = [get_or_create(db, Tag, value=fake.word()) for _ in range(10)]
-        users_to_article: List[User] = db.query(User).all()
+        users_to_article: List[User] = users
         
         content_types = ['image', 'title', 'text']
         

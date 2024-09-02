@@ -13,7 +13,7 @@ from app.domain.article.service import (
     get_articles_by_user_id
 )
 from app.domain.article.schemas import ResponseArticle
-from app.domain.user.schemas import UserCreate, UserProfile, Follower,  UserPublic, SearchUserPublic, ReturnSkillListElement
+from app.domain.user.schemas import UserCreate, UserProfile, Follower,  UserPublic, ReturnSkillListElement
 from pydantic import BaseModel
 from uuid import uuid4
 import jwt
@@ -646,10 +646,10 @@ async def search_user_by_first_and_last_name(
     
     value: str = "",
     sort_order: Literal['asc', 'desc'] = 'desc',
-    sort_by: Literal['match_count', 'follower_count', 'article_count'] = 'match_count',
+    sort_by: Literal['follower_count', 'article_count'] = 'follower_count',
     sex: Optional[str] = None,
     db: Session = Depends(get_db)
-) -> Page[SearchUserPublic]:
+) -> Page[UserPublic]:
     """
     Searches users by their first and last name based on the provided value query.
     The `match_count` represents the number of matches found for each user in the search results.
@@ -663,7 +663,7 @@ async def search_user_by_first_and_last_name(
     )
     
     output = []
-    for user, match_count in users:
+    for user in users:
         output.append({
             "id": user.id,
             "sex": user.sex,
@@ -674,8 +674,7 @@ async def search_user_by_first_and_last_name(
             "follower_count": user.follower_count,
             "first_name": user.first_name,
             "last_name": user.last_name,
-            "article_count": user.article_count,
-            "match_count": match_count
+            "article_count": user.article_count
  
         })
 
