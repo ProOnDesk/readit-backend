@@ -1,4 +1,4 @@
-from pydantic import BaseModel, root_validator
+from pydantic import BaseModel, root_validator, conint
 from datetime import datetime
 from typing import Literal, Union, Optional
 
@@ -39,7 +39,7 @@ class CreateArticle(BaseArticle):
 # COMMENT ARTICLE   
 class BaseCommentArticle(BaseModel):
     content: str
-    rating: int
+    rating: conint(ge=1, le=5)
     
 class CreateCommentArticle(BaseCommentArticle):
     class Config:

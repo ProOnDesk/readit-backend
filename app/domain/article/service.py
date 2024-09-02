@@ -75,7 +75,7 @@ def get_article_comments_by_article_id(db: Session, article_id: int, sort_order:
         return db.query(models.ArticleComment).filter(models.ArticleComment.article_id == article_id).all()
     else:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Niepoprawny typ sortowania. Akceptowane typy to: 'asc' lub 'desc'.")
-
+    
 def create_article_comment(db: Session, comment: schemas.CreateArticle, article_id: int, user_id: int):
     article = db.query(models.Article).filter(models.Article.id == article_id).first()
     if article is None:

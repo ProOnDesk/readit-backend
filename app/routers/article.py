@@ -222,6 +222,14 @@ async def get_comments_by_article_id(article_id: int, sort_order: Union[None, Li
 
 @router.post('/comment/{article_id}', status_code=status.HTTP_201_CREATED)
 async def create_comment_by_article_id(article_comment: schemas.CreateCommentArticle, article_id: int, user_id: Annotated[int, Depends(authenticate)], db: Session = Depends(get_db)) -> schemas.ResponseCommentArticle:
+    if service.get_article_by_id(db=db, article_id=article_id) is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Artykuł nie istnieje")
+        
+    if service.is_user_author_of_article(db=db, user_id=user_id, article_id=article_id):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Nie możesz wystawić komentarza do własnego artykułu.")
+    if not service.has_user_purchased_article(db=db, user_id=user_id, article_id=article_id):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Aby wystawić komentarz, musisz najpierw zakupić ten artykuł.")
+    
     db_article = service.create_article_comment(db=db, comment=article_comment,article_id=article_id, user_id=user_id)
     return db_article
 
