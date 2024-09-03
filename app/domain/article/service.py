@@ -196,6 +196,14 @@ def search_articles(
     # Filter by author
     if author_id:
         query = query.filter(models.Article.author_id == author_id)
+    
+    if is_free:
+        query = query.filter(models.Article.is_free == True)
+    
+    elif is_free is False:
+        query = query.filter(models.Article.is_free == False)
+        
+        
 
     # Filter by view count
     if min_view_count is not None:
