@@ -16,8 +16,8 @@ async def login_for_access_token(
     tokens: EncodedTokens = Depends(validate_credentials)
 ):
 
-    response.set_cookie(key="access_token", value=f'{tokens.access_token}', max_age=ACCESS_TOKEN_EXPIRE_TIME * 60, httponly=True)
-    response.set_cookie(key="refresh_token", value=f'{tokens.refresh_token}', max_age=REFRESH_TOKEN_EXPIRE_TIME * 60 * 24 * 60, httponly=True)
+    response.set_cookie(key="access_token", value=f'{tokens.access_token}', max_age=ACCESS_TOKEN_EXPIRE_TIME * 60, httponly=True, samesite="none", secure=True)
+    response.set_cookie(key="refresh_token", value=f'{tokens.refresh_token}', max_age=REFRESH_TOKEN_EXPIRE_TIME * 60 * 24 * 60, httponly=True, samesite="none", secure=True)
 
     return {
         "message": "Authenticated"
