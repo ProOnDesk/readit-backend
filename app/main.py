@@ -9,6 +9,72 @@ from app.routers import oauth2, user, article, develop, router
 from app.internal.admin import create_admin
 from fastapi_pagination import add_pagination
 from fastapi_pagination.utils import disable_installed_extensions_check
+from sqlalchemy import text
+from contextlib import asynccontextmanager
+from alembic.config import Config as AlembicConfig
+from alembic import command
+import logging
+import os
+
+# Set up logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger("alembic.auto_migrate")
+
+# Functions
+def check_for_changes(alembic_cfg):
+    temp_script_path = "app/alembic/versions/temp_rev_id_temporary_migration.py"
+    logger.info("Generating temporary migration script...")
+
+    try:
+        command.revision(
+            alembic_cfg,
+            autogenerate=True,
+            message="Temporary migration",
+            rev_id="temp_rev_id"
+        )
+
+        if os.path.exists(temp_script_path) and os.path.getsize(temp_script_path) > 0:
+            logger.info("Migration script generated. Changes detected.")
+            # os.remove(temp_script_path)
+            return True
+        else:
+            logger.info("No changes detected.")
+            if os.path.exists(temp_script_path):
+                # os.remove(temp_script_path)
+                ...
+            return False
+    except Exception as e:
+        logger.error(f"Error checking for changes: {e}")
+        return False
+
+def apply_migrations(alembic_cfg):
+    try:
+        command.upgrade(alembic_cfg, "head")
+        logger.info("Migrations applied successfully.")
+    except Exception as e:
+        logger.error(f"Error during migrations: {e}")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    alembic_cfg = AlembicConfig("alembic.ini")
+
+    logger.info("Checking for database changes...")
+    if check_for_changes(alembic_cfg):
+        logger.info("Applying migrations...")
+        apply_migrations(alembic_cfg)
+
+        with SessionLocal() as db:
+            db.execute(text("DROP TABLE IF EXISTS alembic_version;"))
+            db.commit()
+            try:
+                os.remove("app/alembic/versions/temp_rev_id_temporary_migration.py")
+            except Exception as e:
+                print(e)
+    
+    yield
+
+
+
 def create_db() -> None:
     """
     Function responsible for creating the database.
@@ -24,7 +90,12 @@ def get_application() -> FastAPI:
     Function responsible for preparing the FastAPI application.
     """
 
-    fapp = FastAPI()
+    fapp = FastAPI(
+        swagger_ui_parameters={
+            "syntaxHighlight.theme": "obsidian"
+        },
+        lifespan=lifespan
+    )
 
     create_db()
 

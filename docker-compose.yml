@@ -13,7 +13,7 @@ services:
     volumes:
       - ./app:/app/app
     command: >
-      sh -c "alembic upgrade head && python server.py"
+      sh -c "python server.py --dev"
     env_file:
       - ./.env
 

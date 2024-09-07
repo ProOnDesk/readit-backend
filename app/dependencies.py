@@ -1,4 +1,4 @@
-from typing import Annotated, Optional, Union
+from typing import Annotated, Optional, Union, Literal
 from typing_extensions import Doc
 from fastapi import Request, Header, Depends, HTTPException, status, Form
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm, OAuth2
@@ -15,6 +15,169 @@ from jinja2 import Template
 import jwt
 import datetime
 import os
+
+
+class DefaultResponseModel(BaseModel):
+    """Used for type hinting and creating examples"""
+    message: str
+
+class DefaultErrorModel(BaseModel):
+    """Used for creating examples"""
+    detail: str
+
+class Example(BaseModel):
+    """
+    Used for making example response in CreateExampleResponse function
+    """
+    name: str
+    summary: str | None = None
+    description: str | None = None
+    value: dict | BaseModel
+
+def CreateExampleResponse(
+    *,
+    code: int,
+    description: str = '',
+    content_type: Literal[
+        'text/plain', 
+        'text/html', 
+        'text/css', 
+        'text/javascript', 
+        'text/csv', 
+        'text/xml', 
+        'text/markdown', 
+        'application/json', 
+        'application/xml', 
+        'application/octet-stream',
+        'application/pdf',
+        'application/zip',
+        'application/x-www-form-urlencoded',
+        'application/vnd.api+json',
+        'application/ld+json',
+        'application/msword',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+        'image/png',
+        'image/jpeg',
+        'image/gif',
+        'image/svg+xml',
+        'image/webp',
+        'image/bmp',
+        'image/tiff',
+        'image/x-icon',
+        'audio/mpeg',
+        'audio/ogg',
+        'audio/wav',
+        'audio/aac',
+        'video/mp4',
+        'video/webm',
+        'video/ogg',
+        'video/x-msvideo',
+        'multipart/form-data',
+        'multipart/mixed',
+        'multipart/alternative',
+        'application/javascript',
+        'application/x-tar',
+        'application/x-rar-compressed',
+        'application/x-bzip',
+        'application/x-bzip2',
+        'application/x-shockwave-flash',
+        'application/vnd.android.package-archive',
+        '*/*'
+    ] = 'application/json',
+    examples: list[Example] = [Example(name="Example", summary=None, description=None, value=DefaultResponseModel(message="example"))]
+) -> dict[int, dict[str, any]]:
+    """
+    Allows for quick docs building
+
+    Pydantic models can be used as value for example
+
+    Raises `AttributeError` when amount of examples is `<0`
+
+    Usage:
+    ```python
+    @router.get(
+        "/get", 
+        status_code=status.HTTP_200_OK,
+        responses={
+            **CreateExampleResponse(
+                code=200, 
+                description="Pawel", 
+                content_type="application/json", 
+                examples=[
+                    Example(name="Pawel", summary="Pawel", description="Pawel kox", value={"message": "pawel"}), 
+                    Example(name="Kox", summary="Kox", description="Pawel kox", value={"message": "pawel kox"})
+                ]
+            ),
+        }
+    )
+    ```
+    """
+
+    if len(examples) < 1: 
+        raise AttributeError(name="You need to provide atleast one example")
+
+    return { 
+        code: {
+            "description": description,
+            "content": {
+                content_type: {
+                    "examples": {
+                        example.name: {
+                            "summary": example.summary,
+                            "description": example.description,
+                            "value": example.value
+                        }
+                        for example in examples
+                    }
+                }
+            }
+        }
+    }
+
+def Responses(
+    *ExampleResponses: dict[int, dict[str, any]]
+) -> dict[int, dict[str, any]]:
+    """
+    Merges the example responses for fastapi endpoint 
+
+    **Usage**:
+    ```python
+    @router.post(
+        "/",
+        status_code=200, 
+        responses=Responses(
+            CreateExampleResponse(...),
+            ...
+        )
+    )
+    ```
+    **Isn't neccessary, instead you can unpack CreateExampleResponse in dictionary, but it may not always work as intended**:
+    ```python
+    @router.post(
+        "/",
+        status_code=200, 
+        responses=Responses{
+            **CreateExampleResponse(...),
+            ...
+        }
+    )
+    ```
+    """
+    
+    output = {}
+
+    for example in ExampleResponses:
+        if [*example][0] not in [*output]: output.update({**example})
+        else:
+            for content in [*example[[*example][0]]['content']]:
+                if content in [*output[[*example][0]]['content']]:
+                    output[[*example][0]]['content'][content]['examples'].update({**example[[*example][0]]['content'][content]['examples']})
+                else:
+                    output[[*example][0]]['content'].update({**output[[*example][0]]['content'][content]})
+
+    return output
 
 
 conf = ConnectionConfig(
@@ -177,9 +340,6 @@ def get_db():
     finally:
         db.close()
 
-class DefaultResponseModel(BaseModel):
-    message: str
-
 class EncodedTokens(BaseModel):
     access_token: str | None
     refresh_token: str | None
@@ -317,6 +477,12 @@ def validate_credentials(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail='Niepoprawne dane'
         )
+    
+    if not user.is_active:
+         raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail='Zweryfikuj swoje konto'
+        )
 
     # Attempt creating the token
     try:
@@ -337,15 +503,33 @@ def validate_credentials(
     return EncodedTokens(access_token=access_token, refresh_token=refresh_token)
 
 
+def CreateAuthResponses():
+    return CreateExampleResponse(
+        code=400,
+        description='Bad Request',
+        content_type='application/json',
+        examples=[
+            Example(name="Invalid credentials", summary="Invalid credentials", description="Provided credentials are incorrect", value=DefaultErrorModel(detail="Niepoprawne dane")),
+            Example(name="Inactive account", summary="Inactive account", description="Account isn't activated", value=DefaultErrorModel(detail="Zweryfikuj swoje konto")),
+        ]
+    )
+
+
 def authenticate(
     access_token: Annotated[AccessToken, Depends(retrieve_access_token)],
     db: Session = Depends(get_db)
 ) -> int:
     
-    if not get_user(db, access_token.user_id):
+    if not (user := get_user(db, access_token.user_id)):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail='Niepoprawne dane'
+        )
+    
+    if not user.is_active:
+         raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail='Zweryfikuj swoje konto'
         )
 
     return access_token.user_id

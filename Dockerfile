@@ -21,5 +21,5 @@ EXPOSE 8000
 
 # Define the command to run the application
 # CMD ["fastapi", "dev", "app/main.py", "--proxy-headers", "--host", "0.0.0.0", "--port", "8000"]
-CMD ["python", "server.py"]
+CMD ["python", "server.py", "--dev"]
 
