@@ -1,7 +1,7 @@
 from typing import Annotated, Literal, Optional
 from fastapi import APIRouter, Depends, Response, Form, HTTPException, Path, Body, Query, status, File, UploadFile
 from sqlalchemy.orm import Session
-from app.dependencies import send_email, get_db, DefaultResponseModel, authenticate
+from app.dependencies import send_email, get_db, DefaultResponseModel, authenticate, Responses, Example, CreateExampleResponse, CreateAuthResponses
 from app.config import SECRET_KEY, ENCRYPTION_ALGORITHM, IP_ADDRESS, IMAGE_DIR, IMAGE_URL
 from app.domain.user.service import ( create_user, hash_password, 
     get_user_by_email, get_user, create_follow, get_user_skills,
@@ -156,7 +156,13 @@ async def change_password(
         "message": "Hasło zmienione"
     }
 
-@router.get("/get", status_code=status.HTTP_200_OK)
+@router.get(
+    "/get", 
+    status_code=status.HTTP_200_OK,
+    responses=Responses(
+        CreateAuthResponses(),
+    )
+)
 async def get_user_by_access_token(
     user_id: Annotated[int, Depends(authenticate)],
     db: Session = Depends(get_db)
