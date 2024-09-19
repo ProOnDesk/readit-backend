@@ -185,7 +185,6 @@ async def get_user_by_access_token(
         "follower_count": user.follower_count,
         "first_name": user.first_name,
         "last_name": user.last_name,
-        "articles": user.articles,
         "article_count": len(user.articles),
         "skill_list": get_user_skills(db, user_id)
     }
@@ -202,7 +201,6 @@ class UserProfileById(BaseModel):
     first_name: str
     last_name: str
     article_count: int = 0
-    articles: list[ResponseArticle] | None = None
     skill_list: list[ReturnSkillListElement] | None = None
 
 @router.get("/get/{user_id}", status_code=status.HTTP_200_OK)
@@ -227,7 +225,6 @@ async def get_user_by_user_id(
         "follower_count": user.follower_count,
         "first_name": user.first_name,
         "last_name": user.last_name,
-        "articles": user.articles,
         "article_count": len(user.articles),
         "skill_list": get_user_skills(db, user_id)
     }
@@ -237,6 +234,25 @@ async def get_user_by_user_id(
     #     print(articles)
 
     return output
+
+@router.get("/get/articles/{user_id}", status_code=status.HTTP_200_OK)
+async def get_user_by_user_id(
+    user_id: Annotated[int, Path(title="User id")],
+    db: Session = Depends(get_db)
+) -> Page[ResponseArticle]:
+    if not (user := get_user(db, user_id)):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail='Nieprawidłowe dane'
+        )
+
+    output = user.articles
+
+    # if (articles := get_articles_by_user_id(db, user.id)):
+    #     output.update({"articles": []})
+    #     print(articles)
+
+    return paginate(output)
 
 class PasswordChangeModel(BaseModel):
     old_password: str
@@ -295,7 +311,6 @@ async def modify_user(
         "follower_count": user.follower_count,
         "first_name": user.first_name,
         "last_name": user.last_name,
-        "articles": user.articles,
         "article_count": len(user.articles),
         "skill_list": get_user_skills(db, user_id)
     }
@@ -366,7 +381,6 @@ async def modify_avatar(
         "follower_count": user.follower_count,
         "first_name": user.first_name,
         "last_name": user.last_name,
-        "articles": user.articles,
         "article_count": len(user.articles),
         "skill_list": get_user_skills(db, user_id)
     }
@@ -411,7 +425,6 @@ async def modify_background_image(
         "follower_count": user.follower_count,
         "first_name": user.first_name,
         "last_name": user.last_name,
-        "articles": user.articles,
         "article_count": len(user.articles),
         "skill_list": get_user_skills(db, user_id)
     }
@@ -449,7 +462,6 @@ async def add_skill(
         "follower_count": user.follower_count,
         "first_name": user.first_name,
         "last_name": user.last_name,
-        "articles": user.articles,
         "article_count": len(user.articles),
         "skill_list": get_user_skills(db, user_id)
     }
@@ -480,7 +492,6 @@ async def remove_skill(
         "follower_count": user.follower_count,
         "first_name": user.first_name,
         "last_name": user.last_name,
-        "articles": user.articles,
         "article_count": len(user.articles),
         "skill_list": get_user_skills(db, user_id)
     }

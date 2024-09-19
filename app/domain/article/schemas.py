@@ -1,6 +1,6 @@
-from pydantic import BaseModel, root_validator, conint
+from pydantic import BaseModel, Field, root_validator, conint
 from datetime import datetime
-from typing import Literal, Union, Optional
+from typing import Annotated, Literal, Union, Optional
 
 # USER
 class UserInfo(BaseModel):
@@ -39,7 +39,7 @@ class CreateArticle(BaseArticle):
 # COMMENT ARTICLE   
 class BaseCommentArticle(BaseModel):
     content: str
-    rating: conint(ge=1, le=5)
+    rating: Annotated[int, Field(ge=1, le=5)]
     
 class CreateCommentArticle(BaseCommentArticle):
     class Config:

@@ -37,7 +37,6 @@ class UserProfile(UserBase):
     description: str
     follower_count: int
     article_count: int = 0
-    articles: list[ResponseArticle] | None = None
     skill_list: list[ReturnSkillListElement] | None = None
 
     class Config:
