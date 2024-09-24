@@ -89,13 +89,21 @@ def get_application() -> FastAPI:
     """
     Function responsible for preparing the FastAPI application.
     """
-
-    fapp = FastAPI(
-        swagger_ui_parameters={
-            "syntaxHighlight.theme": "obsidian"
-        },
-        lifespan=lifespan
-    )
+    is_testing = os.environ.get('TESTING')
+    
+    if not is_testing:
+        fapp = FastAPI(
+            swagger_ui_parameters={
+                "syntaxHighlight.theme": "obsidian"
+            },
+            lifespan=lifespan
+        )
+    else:
+        fapp = FastAPI(
+            swagger_ui_parameters={
+                "syntaxHighlight.theme": "obsidian"
+            }
+        )
 
     create_db()
 
