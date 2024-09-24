@@ -10,3 +10,4 @@ passlib[bcrypt]
 fastapi-pagination
 alembic
 Faker
+pytest
