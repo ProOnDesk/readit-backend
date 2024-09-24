@@ -49,22 +49,26 @@ async def create_article(
         
         title_image.filename = f'{uuid4()}.{title_image.filename.split(".")[-1]}'
         contents = await title_image.read()
+        
         with open(f"{IMAGE_DIR}{title_image.filename}", "wb") as f:
             f.write(contents)
+            
         title_image_url = f'{IMAGE_URL}{title_image.filename}'
         
         image_content_elements = [ce for ce in article['content_elements'] if ce['content_type'] == 'image']
 
         if images_for_content_type_image: 
             if len(images_for_content_type_image) != len(image_content_elements):
-                    raise HTTPException(
-                        status_code=status.HTTP_400_BAD_REQUEST,
-                        detail='Number of images does not match number of content elements.'
-                    )
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail='Number of images does not match number of content elements.'
+                )
+                    
             for image, content_element in zip(images_for_content_type_image, image_content_elements):
                 check_file_if_image(image)
                 image.filename = f'{uuid4()}.{image.filename.split(".")[-1]}'
                 contents = await image.read()
+                
                 with open(f"{IMAGE_DIR}{image.filename}", "wb") as f:
                     f.write(contents)
                 content_element['content'] = f'{IP_ADDRESS}{IMAGE_URL}{image.filename}'
@@ -74,11 +78,9 @@ async def create_article(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail='Number of images does not match number of content elements.'
                     )
-
             
         db_article = service.create_article(db=db, article=article, user_id=user_id, title_image=title_image_url)
 
-        
         return db_article
     
     except json.JSONDecodeError as e:
@@ -195,7 +197,7 @@ async def get_article_by_slug_title(slug: schemas.Slug, db: Session = Depends(ge
     db_article = service.get_article_by_slug(db=db, slug_title=slug.slug)
     if db_article is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Artykuł nie istnieje.")
-    print(db_article)
+
     db_article.view_count += 1
     db.add(db_article)
     db.commit()
