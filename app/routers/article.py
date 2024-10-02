@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status, File, UploadFile, Form, Query
 from sqlalchemy.orm import Session
 from app.domain.article import schemas, service, models
-from app.dependencies import get_db, authenticate, Tokens, DefaultResponseModel
+from app.dependencies import get_db, authenticate, Tokens, DefaultResponseModel, Responses, CreateExampleResponse, Example, DefaultErrorModel
 from typing import Annotated, Union, Literal, Optional
 from fastapi_pagination import Page, paginate
 from app.config import IMAGE_DIR, IP_ADDRESS, IMAGE_URL
@@ -34,7 +34,68 @@ def check_file_if_image(file: UploadFile) -> None:
             detail='Akceptowane są tylko pliki o formatach img, png, jpg i jpeg.'
         )
         
-@router.post('/', status_code=status.HTTP_201_CREATED)
+@router.post(
+    '/',
+    status_code=status.HTTP_201_CREATED,
+    responses=Responses(
+        CreateExampleResponse(
+            code=status.HTTP_400_BAD_REQUEST,
+            description="Bad Request",
+            content_type='application/json',
+            examples=[
+                Example(
+                    name="InvalidFileFormat",
+                    summary="Invalid file format",
+                    description="The title_image and images_for_content_type_image must be in one of the following formats: img, png, jpg, jpeg.",
+                    value=DefaultErrorModel(detail="Akceptowane są tylko pliki o formatach img, png, jpg i jpeg.")
+                ),
+                Example(
+                    name="InvalidJSONFormat",
+                    summary="Invalid JSON format",
+                    description="The provided JSON is not valid.",
+                    value=DefaultErrorModel(detail="Nieprawidłowy format JSON: <error_message>")
+                ),
+                Example(
+                    name="ImageCountMismatch",
+                    summary="Image count mismatch",
+                    description="The number of provided images does not match the number of image content elements.",
+                    value=DefaultErrorModel(detail="Liczba obrazów nie zgadza się z liczbą elementów zawartości.")
+                ),
+                Example(
+                    name="ImageCountMismatch1",
+                    summary="Image count mismatch",
+                    description="The number of provided images does not match the number of image content elements.",
+                    value=DefaultErrorModel(detail="Liczba dostarczonych obrazów nie zgadza się z liczbą elementów zawartości obrazu w artykule.")
+                ),
+                Example(
+                    name="InvalidArticleFormat",
+                    summary="Invalid article format",
+                    description="The provided article format is not valid.",
+                    value=DefaultErrorModel(detail="Niepoprawny format artykułu")
+                ),
+                Example(
+                    name="TooManyTags",
+                    summary="Too many tags",
+                    description="The number of tags exceeds the allowed limit of 3.",
+                    value=DefaultErrorModel(detail="Zbyt wiele tagów. Maksymalnie dozwolone jest 3.")
+                )
+            ]
+        ),
+        CreateExampleResponse(
+            code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            description="Internal Server Error",
+            content_type='application/json',
+            examples=[
+                Example(
+                    name="UnexpectedError",
+                    summary="Unexpected error",
+                    description="An unexpected error occurred.",
+                    value=DefaultErrorModel(detail="Wystąpił nieoczekiwany błąd: <error_message>")
+                )
+            ]
+        )
+    )
+)
 async def create_article(
     user_id: Annotated[int, Depends(authenticate)],
     title_image: Annotated[UploadFile, File(...)],
@@ -61,7 +122,7 @@ async def create_article(
             if len(images_for_content_type_image) != len(image_content_elements):
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    detail='Number of images does not match number of content elements.'
+                    detail='Liczba obrazów nie zgadza się z liczbą elementów zawartości.'
                 )
                     
             for image, content_element in zip(images_for_content_type_image, image_content_elements):
@@ -76,8 +137,8 @@ async def create_article(
             if len(image_content_elements) != 0:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    detail='Number of images does not match number of content elements.'
-                    )
+                    detail='Liczba dostarczonych obrazów nie zgadza się z liczbą elementów zawartości obrazu w artykule.'
+                )
             
         db_article = service.create_article(db=db, article=article, user_id=user_id, title_image=title_image_url)
 
@@ -86,23 +147,41 @@ async def create_article(
     except json.JSONDecodeError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f'Invalid JSON format: {str(e)}'
+            detail=f'Nieprawidłowy format JSON: {str(e)}'
         )
     except ValidationError as e:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f'Validation error: {str(e)}'
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f'Błąd walidacji: {str(e)}'
         )
     except HTTPException as e:
         raise e
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"An unexpected error occurred: {str(e)}"
+            detail=f"Wystąpił nieoczekiwany błąd: {str(e)}"
         )
 
-@router.get('/all', status_code=status.HTTP_200_OK)
+@router.get('/all', status_code=status.HTTP_200_OK, responses=Responses(CreateExampleResponse(
+            code=status.HTTP_400_BAD_REQUEST,
+            description="Bad Request",
+            content_type='application/json',
+            examples=[
+                Example(
+                    name="InvalidSortOrder",
+                    summary="Invalid sort order",
+                    description="The sort order must be either 'asc' or 'desc'.",
+                    value=DefaultErrorModel(detail="Niepoprawny typ sortowania. Akceptowane typy to: 'asc' lub 'desc'.")
+                )
+            ]
+        )))
 async def get_articles(sort_order: Union[None, Literal['asc', 'desc']] = None, db: Session = Depends(get_db)) -> Page[schemas.ResponseArticle]:
+    
+    if sort_order not in [None, 'asc', 'desc']:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Niepoprawny typ sortowania. Akceptowane typy to: 'asc' lub 'desc'."
+        )
     
     db_articles = service.get_articles(db=db, sort_order=sort_order)
     return paginate(db_articles)
@@ -144,7 +223,38 @@ async def search_article_by_title_and_summary(
     # Paginate the result
     return paginate(db_articles)
 
-@router.get('/detail/id/{article_id}', status_code=status.HTTP_200_OK)
+@router.get(
+    '/detail/id/{article_id}', 
+    status_code=status.HTTP_200_OK, 
+    responses=Responses(
+        CreateExampleResponse(
+            code=status.HTTP_404_NOT_FOUND,
+            description="Not Found",
+            content_type='application/json',
+            examples=[
+                Example(
+                    name="ArticleNotFound",
+                    summary="Article not found",
+                    description="The article with the given ID does not exist.",
+                    value=DefaultErrorModel(detail="Artykuł nie istnieje.")
+                ),
+            ]
+        ),
+        CreateExampleResponse(
+            code=status.HTTP_401_UNAUTHORIZED,
+            description="Unauthorized",
+            content_type='application/json',
+            examples=[
+                Example(
+                    name="Unauthorized",
+                    summary="Unauthorized",
+                    description="The user is not authorized to access this article.",
+                    value=DefaultErrorModel(detail="Nie zakupiłeś tego artykułu.")
+                ),
+            ]
+        )
+    )
+)
 async def get_detail_article_by_id(article_id: int, user_id: Annotated[int, Depends(authenticate)], db: Session = Depends(get_db)) -> schemas.ResponseArticleDetail:
     
     db_article = service.get_article_by_id(db=db, article_id=article_id)
@@ -161,8 +271,43 @@ async def get_detail_article_by_id(article_id: int, user_id: Annotated[int, Depe
     
     return db_article
 
-@router.post('/detail/slug', status_code=status.HTTP_200_OK)
-async def get_detail_article_by_slug_title(slug: schemas.Slug , user_id: Annotated[int, Depends(authenticate)], db: Session = Depends(get_db)) -> schemas.ResponseArticleDetail:
+@router.post(
+    '/detail/slug',
+    status_code=status.HTTP_200_OK,
+    responses=Responses(
+        CreateExampleResponse(
+            code=status.HTTP_404_NOT_FOUND,
+            description="Not Found",
+            content_type='application/json',
+            examples=[
+                Example(
+                    name="ArticleNotFound",
+                    summary="Article not found",
+                    description="The article with the given slug does not exist.",
+                    value=DefaultErrorModel(detail="Artykuł nie istnieje.")
+                )
+            ]
+        ),
+        CreateExampleResponse(
+            code=status.HTTP_401_UNAUTHORIZED,
+            description="Unauthorized",
+            content_type='application/json',
+            examples=[
+                Example(
+                    name="Unauthorized",
+                    summary="Unauthorized",
+                    description="The user is not authorized to access this article.",
+                    value=DefaultErrorModel(detail="Nie zakupiłeś tego artykułu.")
+                ),
+            ]
+        )
+    )
+)
+async def get_detail_article_by_slug_title(
+    slug: schemas.Slug,
+    user_id: Annotated[int, Depends(authenticate)],
+    db: Session = Depends(get_db)
+) -> schemas.ResponseArticleDetail:
     
     db_article = service.get_article_by_slug(db=db, slug_title=slug.slug)
     if db_article is None:
@@ -178,7 +323,25 @@ async def get_detail_article_by_slug_title(slug: schemas.Slug , user_id: Annotat
 
     return db_article
 
-@router.get('/id/{article_id}', status_code=status.HTTP_200_OK)
+@router.get(
+    '/id/{article_id}',
+    status_code=status.HTTP_200_OK,
+    responses=Responses(
+        CreateExampleResponse(
+            code=status.HTTP_404_NOT_FOUND,
+            description="Not Found",
+            content_type='application/json',
+            examples=[
+                Example(
+                    name="ArticleNotFound",
+                    summary="Article not found",
+                    description="The article with the given article id does not exist.",
+                    value=DefaultErrorModel(detail="Artykuł nie istnieje.")
+                )
+            ]
+            )
+        )
+    )
 async def get_article_by_id(article_id: int, db: Session = Depends(get_db)) -> schemas.ResponseArticle:
     db_article = service.get_article_by_id(db=db, article_id=article_id)
     if db_article is None:
@@ -192,7 +355,26 @@ async def get_article_by_id(article_id: int, db: Session = Depends(get_db)) -> s
 
     return db_article
 
-@router.post('/slug', status_code=status.HTTP_200_OK)
+@router.post(
+    '/slug',
+    status_code=status.HTTP_200_OK,
+    responses=Responses(
+        CreateExampleResponse(
+            code=status.HTTP_404_NOT_FOUND,
+            description="Not Found",
+            content_type='application/json',
+            examples=[
+                Example(
+                    name="ArticleNotFound",
+                    summary="Article not found",
+                    description="The article with the given slug does not exist.",
+                    value=DefaultErrorModel(detail="Artykuł nie istnieje.")
+                )
+            ]
+            )
+        )
+    
+    )
 async def get_article_by_slug_title(slug: schemas.Slug, db: Session = Depends(get_db)) -> schemas.ResponseArticle:
     db_article = service.get_article_by_slug(db=db, slug_title=slug.slug)
     if db_article is None:
@@ -205,17 +387,62 @@ async def get_article_by_slug_title(slug: schemas.Slug, db: Session = Depends(ge
 
     return db_article
 
-@router.delete('/{article_id}', status_code=status.HTTP_200_OK)
-async def delete_article_by_id(article_id: int, user_id: Annotated[int, Depends(authenticate)], db: Session = Depends(get_db)):
+@router.delete(
+    '/{article_id}',
+    status_code=status.HTTP_200_OK,
+    responses=Responses(
+        CreateExampleResponse(
+            code=status.HTTP_404_NOT_FOUND,
+            description="Not Found",
+            content_type='application/json',
+            examples=[
+                Example(
+                    name="ArticleNotFound",
+                    summary="Article not found",
+                    description="The article with the given ID does not exist.",
+                    value=DefaultErrorModel(detail="Artykuł nie istnieje.")
+                )
+            ]
+        ),
+        CreateExampleResponse(
+            code=status.HTTP_401_UNAUTHORIZED,
+            description="Unauthorized",
+            content_type='application/json',
+            examples=[
+                Example(
+                    name="Unauthorized",
+                    summary="Unauthorized",
+                    description="The user is not authorized to delete this article.",
+                    value=DefaultErrorModel(detail="Nieautoryzowana akcja: Nie masz uprawnień do usunięcia tego artykułu.")
+                )
+            ]
+        ),
+        CreateExampleResponse(
+            code=status.HTTP_200_OK,
+            description="OK",
+            content_type='application/json',
+            examples=[
+                Example(
+                    name="ArticleDeleted",
+                    summary="Article deleted",
+                    description="The article was successfully deleted.",
+                    value=DefaultResponseModel(message="Usunięto pomyślnie artykuł.")
+                )
+            ]
+        )
+    )
+)
+async def delete_article_by_id(article_id: int, user_id: Annotated[int, Depends(authenticate)], db: Session = Depends(get_db)) :
     db_article = service.get_article_by_id(db=db, article_id=article_id)
     if db_article is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Artykuł nie istnieje")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Artykuł nie istnieje.")
 
     if db_article.author_id != user_id:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED)
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Nieautoryzowana akcja: Nie masz uprawnień do usunięcia tego artykułu.")
     
     service.delete_article(db=db, db_article=db_article)
-    raise HTTPException(status_code=status.HTTP_200_OK, detail="Usunięto pomyślnie artykuł.")
+    
+    return DefaultResponseModel(message="Usunięto pomyślnie artykuł.")
 
 @router.get('/comment/all/{article_id}', status_code=status.HTTP_200_OK)
 async def get_comments_by_article_id(article_id: int, sort_order: Union[None, Literal['asc', 'desc']] = None, db: Session = Depends(get_db)) -> Page[schemas.ResponseCommentArticle]:

@@ -13,7 +13,7 @@ def get_articles(db: Session, sort_order: Union[None, Literal['asc', 'desc']] = 
         return db.query(models.Article).order_by(models.Article.id.desc()).all()
     elif sort_order is None:
         return db.query(models.Article).all()
-    raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid sort order. Allowed values are 'asc' and 'desc'.")
+    raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Niepoprawny typ sortowania. Akceptowane typy to: 'asc' lub 'desc'.")
 
 def get_article_by_slug(db: Session, slug_title: str):
     # Use text() to wrap the raw SQL query
@@ -38,7 +38,7 @@ def create_article(db: Session, article: Union[schemas.CreateArticle, dict], use
     elif isinstance(article, dict):
         article_dict = article
     else:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid article format. Must be either schemas.CreateArticle or dict.")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Niepoprawny format artykułu")
 
     tag_dicts = article_dict.pop('tags')
     content_elements_dicts = article_dict.pop('content_elements')
