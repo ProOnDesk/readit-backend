@@ -444,12 +444,87 @@ async def delete_article_by_id(article_id: int, user_id: Annotated[int, Depends(
     
     return DefaultResponseModel(message="Usunięto pomyślnie artykuł.")
 
-@router.get('/comment/all/{article_id}', status_code=status.HTTP_200_OK)
+@router.get(
+    '/comment/all/{article_id}',
+    status_code=status.HTTP_200_OK,
+    responses=Responses(
+        CreateExampleResponse(
+            code=status.HTTP_400_BAD_REQUEST,
+            description='Bad Request',
+            content_type='application/json',
+            examples=[
+                Example(
+                    name="InvalidSortOrder",
+                    summary="Invalid sort order",
+                    description="The sort order must be either 'asc' or 'desc'.",
+                    value=DefaultErrorModel(detail="Niepoprawny typ sortowania. Akceptowane typy to: 'asc' lub 'desc'.")
+                )
+            ]
+        )
+    )
+)
 async def get_comments_by_article_id(article_id: int, sort_order: Union[None, Literal['asc', 'desc']] = None, db: Session = Depends(get_db)) -> Page[schemas.ResponseCommentArticle]:
     db_comments = service.get_article_comments_by_article_id(db=db, article_id=article_id, sort_order=sort_order)
     return paginate(db_comments)
 
-@router.post('/comment/{article_id}', status_code=status.HTTP_201_CREATED)
+@router.post(
+    '/comment/{article_id}',
+    status_code=status.HTTP_201_CREATED,
+    responses=Responses(
+        CreateExampleResponse(
+            status=status.HTTP_400_BAD_REQUEST,
+            description='Bad Request',
+            content_type='application/json',
+            examples=[
+                Example(
+                    name='ArticleAlreadyExists',
+                    summary='Article already exists',
+                    description='Article with this id already exists.',
+                    value=DefaultErrorModel(detail='Komentarz do tego artykułu już istnieje')
+                )
+            ]
+        ),
+        CreateExampleResponse(
+            status=status.HTTP_401_UNAUTHORIZED,
+            description='Unathorized',
+            content_type='application/json',
+            examples=[
+                Example(
+                    name='CommentingRestricted',
+                    summary='Access to comment is restricted to purchasers of the article.',
+                    description='To leave a comment, the user must first purchase the article associated with the provided article ID.',
+                    value=DefaultErrorModel(detail='Aby wystawić komentarz, musisz najpierw zakupić ten artykuł.')
+                )
+            ]
+        ),
+        CreateExampleResponse(
+            status=status.HTTP_403_FORBIDDEN,
+            description='Forbidden',
+            content_type='application/json',
+            examples=[
+                Example(
+                    name='SelfCommentingNotAllowed',
+                    summary='Authors cannot comment on their own articles.',
+                    description='The user is forbidden from commenting on their own article due to platform rules.',
+                    value=DefaultErrorModel(detail='Nie możesz wystawić komentarza do własnego artykułu.')
+                )
+            ]
+        ),
+        CreateExampleResponse(
+            code=status.HTTP_404_NOT_FOUND,
+            description="Not Found",
+            content_type='application/json',
+            examples=[
+                Example(
+                    name="ArticleNotFound",
+                    summary="Article not found",
+                    description="The article with the given article id does not exist.",
+                    value=DefaultErrorModel(detail="Artykuł nie istnieje.")
+                )
+            ]
+        )
+    )
+)
 async def create_comment_by_article_id(article_comment: schemas.CreateCommentArticle, article_id: int, user_id: Annotated[int, Depends(authenticate)], db: Session = Depends(get_db)) -> schemas.ResponseCommentArticle:
     if service.get_article_by_id(db=db, article_id=article_id) is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Artykuł nie istnieje")
