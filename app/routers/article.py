@@ -13,6 +13,7 @@ router = APIRouter(
     prefix='/articles',
     tags=['Articles']
 )
+
 def check_user_has_permission_for_article(
     db: Session,
     article_id: int,
@@ -140,6 +141,7 @@ async def search_article_by_title_and_summary(
     )
     
     # Paginate the result
+    print(db_articles)
     return paginate(db_articles)
 
 @router.get('/detail/id/{article_id}', status_code=status.HTTP_200_OK)
