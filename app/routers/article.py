@@ -426,7 +426,7 @@ async def get_article_by_slug_title(slug: schemas.Slug, db: Session = Depends(ge
                     name="ArticleDeleted",
                     summary="Article deleted",
                     description="The article was successfully deleted.",
-                    value=DefaultResponseModel(message="Usunięto pomyślnie artykuł.")
+                    value=DefaultErrorModel(detail="Usunięto pomyślnie artykuł.")
                 )
             ]
         )
@@ -442,7 +442,8 @@ async def delete_article_by_id(article_id: int, user_id: Annotated[int, Depends(
     
     service.delete_article(db=db, db_article=db_article)
     
-    return DefaultResponseModel(message="Usunięto pomyślnie artykuł.")
+    raise HTTPException(status_code=status.HTTP_200_OK, detail="Usunięto pomyślnie artykuł.")
+
 
 @router.get(
     '/comment/all/{article_id}',
@@ -472,7 +473,7 @@ async def get_comments_by_article_id(article_id: int, sort_order: Union[None, Li
     status_code=status.HTTP_201_CREATED,
     responses=Responses(
         CreateExampleResponse(
-            status=status.HTTP_400_BAD_REQUEST,
+            code=status.HTTP_400_BAD_REQUEST,
             description='Bad Request',
             content_type='application/json',
             examples=[
@@ -485,7 +486,7 @@ async def get_comments_by_article_id(article_id: int, sort_order: Union[None, Li
             ]
         ),
         CreateExampleResponse(
-            status=status.HTTP_401_UNAUTHORIZED,
+            code=status.HTTP_401_UNAUTHORIZED,
             description='Unathorized',
             content_type='application/json',
             examples=[
@@ -498,7 +499,7 @@ async def get_comments_by_article_id(article_id: int, sort_order: Union[None, Li
             ]
         ),
         CreateExampleResponse(
-            status=status.HTTP_403_FORBIDDEN,
+            code=status.HTTP_403_FORBIDDEN,
             description='Forbidden',
             content_type='application/json',
             examples=[
@@ -537,7 +538,51 @@ async def create_comment_by_article_id(article_comment: schemas.CreateCommentArt
     db_article = service.create_article_comment(db=db, comment=article_comment,article_id=article_id, user_id=user_id)
     return db_article
 
-@router.delete('/comment/{article_id}', status_code=status.HTTP_200_OK)
+@router.delete(
+    '/comment/{article_id}',
+    status_code=status.HTTP_200_OK,
+    responses=Responses(
+        CreateExampleResponse(
+            code=status.HTTP_404_NOT_FOUND,
+            description="Not Found",
+            content_type='application/json',
+            examples=[
+                Example(
+                    name="CommentNotFound",
+                    summary="Comment not found",
+                    description="No comment found for the given user and article.",
+                    value=DefaultErrorModel(detail="Nie znaleziono komentarza powiązanego z tym użytkownikiem i artykułem.")
+                )
+            ]
+        ),
+        CreateExampleResponse(
+            code=status.HTTP_401_UNAUTHORIZED,
+            description="Unauthorized",
+            content_type='application/json',
+            examples=[
+                Example(
+                    name="Unauthorized",
+                    summary="Unauthorized",
+                    description="The user is not authorized to delete this comment.",
+                    value=DefaultErrorModel(detail="Nieautoryzowana akcja: Nie masz uprawnień do usunięcia tego komentarza, ponieważ nie jesteś jego autorem.")
+                )
+            ]
+        ),
+        CreateExampleResponse(
+            code=status.HTTP_200_OK,
+            description="OK",
+            content_type='application/json',
+            examples=[
+                Example(
+                    name="CommentDeleted",
+                    summary="Comment deleted",
+                    description="The comment was successfully deleted.",
+                    value=DefaultErrorModel(detail="Komentarz został pomyślnie usunięty.")
+                )
+            ]
+        )
+    )
+)
 async def delete_comment_by_article_id(article_id: int, user_id: Annotated[int, Depends(authenticate)], db: Session = Depends(get_db)):
     article_comment = service.get_article_comment_by_user_id_and_article_id(db=db, user_id=user_id, article_id=article_id)
     if article_comment is None:
@@ -556,17 +601,74 @@ async def delete_comment_by_article_id(article_id: int, user_id: Annotated[int, 
     raise HTTPException(status_code=status.HTTP_200_OK, detail="Komentarz został pomyślnie usunięty.")
 
 
-@router.post('/wish-list/add/{article_id}', status_code=status.HTTP_200_OK)
+@router.post(
+    '/wish-list/add/{article_id}',
+    status_code=status.HTTP_200_OK,
+    responses=Responses(
+        CreateExampleResponse(
+            code=status.HTTP_404_NOT_FOUND,
+            description="Not Found",
+            content_type='application/json',
+            examples=[
+                Example(
+                    name="ArticleNotFound",
+                    summary="Article not found",
+                    description="The article with the given article id does not exist.",
+                    value=DefaultErrorModel(detail="Artykuł nie istnieje.")
+                )
+            ]
+        )
+    )
+)
 async def add_article_to_wish_list(article_id: int, user_id: Annotated[int, Depends(authenticate)], db: Session = Depends(get_db)) -> schemas.ResponseWishList:
     db_wish_list = service.create_wish_list(db=db, article_id=article_id, user_id=user_id)
     return db_wish_list
 
-@router.get('/wish-list/is/{article_id}')
-async def is_article_in_wish_list(article_id: int, user_id: Annotated[int, Depends(authenticate)], db: Session = Depends(get_db)):
+@router.get('/wish-list/is/{article_id}', status_code=status.HTTP_200_OK)
+async def is_article_in_wish_list(article_id: int, user_id: Annotated[int, Depends(authenticate)], db: Session = Depends(get_db)) -> bool:
     return service.has_user_article_in_wish_list(db=db, user_id=user_id, article_id=article_id)
 
-@router.post('/wish-list/change/{article_id}')
+@router.post(
+    '/wish-list/change/{article_id}',
+    status_code=status.HTTP_200_OK,
+    responses=Responses(
+        CreateExampleResponse(
+            code=status.HTTP_404_NOT_FOUND,
+            description="Not Found",
+            content_type='application/json',
+            examples=[
+                Example(
+                    name="ArticleNotFound",
+                    summary="Article not found",
+                    description="The article with the given article id does not exist.",
+                    value=DefaultErrorModel(detail="Artykuł nie istnieje.")
+                )
+            ]
+        ),
+        CreateExampleResponse(
+            code=status.HTTP_200_OK,
+            description="OK",
+            content_type='application/json',
+            examples=[
+                Example(
+                    name="AddedToWishList",
+                    summary="Added to wish list",
+                    description="The article was successfully added to the wish list.",
+                    value=DefaultErrorModel(detail="Dodano artykuł do ulubionych.")
+                ),
+                Example(
+                    name="RemovedFromWishList",
+                    summary="Removed from wish list",
+                    description="The article was successfully removed from the wish list.",
+                    value=DefaultErrorModel(detail="Usunięto artykuł z ulubionych.")
+                )
+            ]
+        )
+    )
+)
 async def change_article_is_in_wish_list_or_not(article_id: int, user_id: Annotated[int, Depends(authenticate)], db : Session = Depends(get_db)):
+    if not service.get_article_by_id(db=db, article_id=article_id):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Artykuł nie istnieje.")
     
     if service.has_user_article_in_wish_list(db=db, user_id=user_id, article_id=article_id):
         wish_list = service.get_wish_list_by_user_id_and_article_id(db=db, user_id=user_id, article_id=article_id)
@@ -576,13 +678,68 @@ async def change_article_is_in_wish_list_or_not(article_id: int, user_id: Annota
     service.create_wish_list(db=db, article_id=article_id, user_id=user_id)
     raise HTTPException(status_code=status.HTTP_200_OK, detail="Dodano artykuł do ulubionych.")
 
-@router.get('/wish-list/all/me', status_code=status.HTTP_200_OK)
-async def get_articles_from_wish_list(user_id: Annotated[int, Depends(authenticate)], sort_order: Union[None, Literal['asc', 'desc']] = None, db: Session = Depends(get_db)) ->Page[schemas.ResponseWishList]:
+@router.get(
+    '/wish-list/all/me',
+    status_code=status.HTTP_200_OK,
+    responses=Responses(
+        CreateExampleResponse(
+            code=status.HTTP_400_BAD_REQUEST,
+            description="Bad Request",
+            content_type='application/json',
+            examples=[
+                Example(
+                    name="InvalidSortOrder",
+                    summary="Invalid sort order",
+                    description="The sort order must be either 'asc' or 'desc'.",
+                    value=DefaultErrorModel(detail="Niepoprawny typ sortowania. Akceptowane typy to: 'asc' lub 'desc'.")
+                )
+            ]
+        ),
+    )
+)
+async def get_articles_from_wish_list(user_id: Annotated[int, Depends(authenticate)], sort_order: Union[None, Literal['asc', 'desc']] = None, db: Session = Depends(get_db)) -> Page[schemas.ResponseWishList]:
     db_wish_list = service.get_wish_list_by_user_id(db=db, user_id=user_id, sort_order=sort_order)
     return paginate(db_wish_list)
 
-@router.delete('/wish-list/delete/{article_id}', status_code=status.HTTP_200_OK)
-async def delete_article_from_wish_list(article_id:int, user_id: Annotated[int, Depends(authenticate)], db: Session = Depends(get_db)):
+@router.delete(
+    '/wish-list/delete/{article_id}',
+    status_code=status.HTTP_200_OK,
+    responses=Responses(
+        CreateExampleResponse(
+            code=status.HTTP_400_BAD_REQUEST,
+            description="Bad Request",
+            content_type='application/json',
+            examples=[
+                Example(
+                    name="ArticleNotFound",
+                    summary="Article not found",
+                    description="The article with the given article id does not exist.",
+                    value=DefaultErrorModel(detail="Artykuł nie istnieje.")
+                ),
+                Example(
+                    name="ArticleNotInWishList",
+                    summary="Article not in wish list",
+                    description="The article is not in the user's wish list.",
+                    value=DefaultErrorModel(detail="Ten artykuł nie znajduje się w ulubionych.")
+                )
+            ]
+        ),
+        CreateExampleResponse(
+            code=status.HTTP_200_OK,
+            description="OK",
+            content_type='application/json',
+            examples=[
+                Example(
+                    name="ArticleRemovedFromWishList",
+                    summary="Article removed from wish list",
+                    description="The article was successfully removed from the wish list.",
+                    value=DefaultErrorModel(detail="Artykuł został pomyślnie usunięty z ulubionych.")
+                )
+            ]
+        )
+    )
+)
+async def delete_article_from_wish_list(article_id: int, user_id: Annotated[int, Depends(authenticate)], db: Session = Depends(get_db)):
     db_article = db.query(models.Article).filter(models.Article.id == article_id).first()
     if db_article is None:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Artykuł nie istnieje.")
@@ -600,7 +757,70 @@ async def delete_article_from_wish_list(article_id:int, user_id: Annotated[int, 
         detail="Artykuł został pomyślnie usunięty z ulubionych."
     )
 
-@router.post('/buy/{article_id}')
+@router.post(
+    '/buy/{article_id}',
+    status_code=status.HTTP_200_OK,
+    responses=Responses(
+        CreateExampleResponse(
+            code=status.HTTP_200_OK,
+            description="OK",
+            content_type='application/json',
+            examples=[
+                Example(
+                    name="ArticlePurchased",
+                    summary="Article purchased",
+                    description="The article was successfully purchased.",
+                    value=DefaultErrorModel(detail="Artykuł został pomyślnie zakupiony.")
+                )
+            ]
+        ),
+        CreateExampleResponse(
+            code=status.HTTP_403_FORBIDDEN,
+            description="Forbidden",
+            content_type='application/json',
+            examples=[
+                Example(
+                    name="CannotBuyOwnArticle",
+                    summary="Cannot buy own article",
+                    description="The user cannot buy their own article.",
+                    value=DefaultErrorModel(detail="Nie możesz kupić własnego artykułu.")
+                ),
+                Example(
+                    name="ArticleAlreadyPurchased",
+                    summary="Article already purchased",
+                    description="The user has already purchased this article.",
+                    value=DefaultErrorModel(detail="Już zakupiłeś ten artykuł.")
+                )
+            ]
+        ),
+        CreateExampleResponse(
+            code=status.HTTP_404_NOT_FOUND,
+            description="Not Found",
+            content_type='application/json',
+            examples=[
+                Example(
+                    name="ArticleNotFound",
+                    summary="Article not found",
+                    description="The article with the given ID does not exist.",
+                    value=DefaultErrorModel(detail="Nie znaleziono artykułu.")
+                )
+            ]
+        ),
+        CreateExampleResponse(
+            code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            description="Internal Server Error",
+            content_type='application/json',
+            examples=[
+                Example(
+                    name="UnexpectedError",
+                    summary="Unexpected error",
+                    description="An unexpected error occurred.",
+                    value=DefaultErrorModel(detail="An unexpected error occurred: {str(e)}")
+                )
+            ]
+        )
+    )
+)
 async def buy_article_by_id(article_id: int, user_id: Annotated[int, Depends(authenticate)], db: Session = Depends(get_db)):
     try:
         if service.is_user_author_of_article(db=db, user_id=user_id, article_id=article_id):
@@ -634,7 +854,38 @@ async def buy_article_by_id(article_id: int, user_id: Annotated[int, Depends(aut
             detail=f"An unexpected error occurred: {str(e)}"
         )
         
-@router.get('/bought-list')
+@router.get(
+    '/bought-list',
+    status_code=status.HTTP_200_OK,
+    responses=Responses(
+        CreateExampleResponse(
+            code=status.HTTP_404_NOT_FOUND,
+            description="Not Found",
+            content_type='application/json',
+            examples=[
+                Example(
+                    name="NoPurchasedArticles",
+                    summary="No purchased articles found",
+                    description="The user has not purchased any articles.",
+                    value=DefaultErrorModel(detail="Nie znaleziono zakupionych artykułów.")
+                )
+            ]
+        ),
+        CreateExampleResponse(
+            code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            description="Internal Server Error",
+            content_type='application/json',
+            examples=[
+                Example(
+                    name="UnexpectedError",
+                    summary="Unexpected error",
+                    description="An unexpected error occurred.",
+                    value=DefaultErrorModel(detail="An unexpected error occurred: {str(e)}")
+                )
+            ]
+        )
+    )
+)
 async def get_bought_articles(user_id: Annotated[int, Depends(authenticate)], db: Session = Depends(get_db)) -> Page[schemas.PurchasedArticle]:
     try:
         purchased_articles = service.get_purchased_articles_by_user_id(db=db, user_id=user_id)
@@ -656,5 +907,5 @@ async def get_bought_articles(user_id: Annotated[int, Depends(authenticate)], db
         )
         
 @router.get('/is-bought/{article_id}')
-def is_article_bought(article_id: int, user_id: Annotated[int, Depends(authenticate)], db: Session = Depends(get_db)):
+def is_article_bought(article_id: int, user_id: Annotated[int, Depends(authenticate)], db: Session = Depends(get_db)) -> bool:
     return service.has_user_purchased_article(db=db, user_id=user_id, article_id=article_id)
