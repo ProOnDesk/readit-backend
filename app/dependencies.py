@@ -424,8 +424,8 @@ def retrieve_access_token(
 
     if token.access_token == "None":
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail='Niepoprawne dane'
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail='Nie jestes zalogowany'
         )
 
     decoded_access_token = jwt.decode(token.access_token, SECRET_KEY, algorithms=[ENCRYPTION_ALGORITHM])
@@ -445,8 +445,8 @@ def retrieve_refresh_token(
     
     if token.refresh_token == "None":
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail='Niepoprawne dane'
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail='Nie jestes zalogowany'
         )
     
     decoded_refresh_token = jwt.decode(token.refresh_token, SECRET_KEY, algorithms=[ENCRYPTION_ALGORITHM])
