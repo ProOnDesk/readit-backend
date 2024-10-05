@@ -15,7 +15,7 @@ router = APIRouter(
     status_code=status.HTTP_201_CREATED,
 )
 async def create_issue(issue: schemas.BaseIssue, user_id: Annotated[int, Depends(authenticate)], db: Annotated[Session, Depends(get_db)]) -> schemas.IssueOut:
-    return service.create_issue(db=db, issue=issue, user_id=user_id)
+    return await service.create_issue(db=db, issue=issue, user_id=user_id)
 
 @router.get(
     '/issue/list',
