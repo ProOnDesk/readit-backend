@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query
 from fastapi_pagination import Page, paginate
 from sqlalchemy.orm import Session
 from app.domain.support import service, schemas, models
-from app.dependencies import get_db, authenticate, DefaultErrorModel, DefaultResponseModel
+from app.dependencies import get_db, authenticate, DefaultErrorModel, DefaultResponseModel, Responses, CreateExampleResponse, Example
 from typing import Annotated, Union, Literal, Optional
 
 router = APIRouter(
@@ -28,7 +28,22 @@ async def get_my_issue_list(user_id: Annotated[int, Depends(authenticate)], db: 
 
 @router.get(
     '/issue/{issue_id}',
-    status_code=status.HTTP_200_OK
+    status_code=status.HTTP_200_OK,
+    responses=Responses(
+        CreateExampleResponse(
+            code=status.HTTP_404_NOT_FOUND,
+            description='Not Found',
+            content_type='application/json',
+            examples=[
+                Example(
+                    name='IssueNotFound',
+                    summary='Issue not Found',
+                    descriptio='The issue with given ID does not exsits.',
+                    value=DefaultErrorModel(detail='Nie znaleziono zgłoszenia.')
+                )
+            ]
+        )
+    )
 )
 async def get_my_issue_by_id(issue_id: int, user_id: Annotated[int, Depends(authenticate)], db: Annotated[Session, Depends(get_db)]):
     db_issue = await service.get_issue_by_user_and_issue_id(db=db, issue_id=issue_id, user_id=user_id)
