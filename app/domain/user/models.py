@@ -31,6 +31,8 @@ class User(Base):
     purchased_articles = relationship('ArticlePurchase', back_populates='user', cascade='all, delete-orphan')
     skills = relationship('SkillList', back_populates='user', cascade='all, delete-orphan')
     
+    support_issues = relationship('Issue', back_populates='reported_by', cascade='all, delete-orphan')
+    
     @property
     def avatar_url(self):
         return IP_ADDRESS + self.avatar
