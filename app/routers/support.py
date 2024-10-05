@@ -45,7 +45,7 @@ async def get_my_issue_list(user_id: Annotated[int, Depends(authenticate)], db: 
         )
     )
 )
-async def get_my_issue_by_id(issue_id: int, user_id: Annotated[int, Depends(authenticate)], db: Annotated[Session, Depends(get_db)]):
+async def get_my_issue_by_id(issue_id: int, user_id: Annotated[int, Depends(authenticate)], db: Annotated[Session, Depends(get_db)]) -> schemas.IssueOut:
     db_issue = await service.get_issue_by_user_and_issue_id(db=db, issue_id=issue_id, user_id=user_id)
     if not db_issue:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Nie znaleziono zgłoszenia.')
