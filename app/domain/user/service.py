@@ -82,6 +82,22 @@ def delete_follow(db: Session, follow_id: int):
     db.delete(get_follow(db, follow_id))
     db.commit()
 
+def get_followers_by_user_id(db: Session, user_id: int):
+    db_user = db.query(models.User).filter(models.User.id == user_id).first()
+    print(db_user.followers)
+    if db_user:
+        return [follower.follower for follower in db_user.followers]
+    
+    return []
+    
+def get_following_by_user_id(db: Session, user_id: int):
+    db_user = db.query(models.User).filter(models.User.id == user_id).first()
+    
+    if db_user:
+        return [following.followed for following in db_user.following]
+    
+    return []
+
 def create_skill(db: Session, skill_name: str):
     db_skill = models.Skill(
         skill_name=skill_name

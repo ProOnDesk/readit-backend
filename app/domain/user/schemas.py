@@ -74,3 +74,12 @@ class Follower(BaseModel):
     id: int
     follower_id: int
     followed_id: int
+
+class UserFollowerPublic(BaseModel):
+    id: int
+    first_name: str
+    last_name: str
+    avatar_url: str
+    background_image_url: str
+    follower_count: int
+    article_count: int
