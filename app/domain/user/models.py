@@ -42,7 +42,7 @@ class User(Base):
         return IP_ADDRESS + self.background_image
     
     def __str__(self):
-        return self.email
+        return f'id - {self.id} email - {self.email}'
 
 class Follower(Base):
     __tablename__ = "followers"
