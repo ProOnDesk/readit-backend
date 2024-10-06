@@ -35,8 +35,15 @@ class BaseArticle(BaseModel):
     
 class CreateArticle(BaseArticle):
     content_elements: list[BaseArticleContentElement]
-    
-# COMMENT ARTICLE   
+
+class UpdatePartialArticle(BaseModel):
+    title: str | None
+    summary: str | None
+    tags: Optional[list[BaseTag]] | None
+    is_free: bool | None
+    price: float | None
+    content_elements: list[BaseArticleContentElement] | None
+
 class BaseCommentArticle(BaseModel):
     content: str
     rating: Annotated[int, Field(ge=1, le=5)]

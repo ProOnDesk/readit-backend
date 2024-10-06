@@ -99,7 +99,32 @@ async def create_article(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"An unexpected error occurred: {str(e)}"
         )
-
+@router.patch(
+    '/{article_id}',
+    status_code=status.HTTP_200_OK
+)
+async def update_partial_article_by_id(
+    article_id: int,
+    user_id: Annotated[int, Depends(authenticate)],
+    title_image: Union[None, Annotated[UploadFile, File(...)]],
+    article: Annotated[Union[schemas.CreateArticle, str], Form(...)],
+    db: Annotated[Session, Depends(get_db)],
+    images_for_content_type_image: Union[None, list[UploadFile]]
+    ):
+    db_article = service.get_article_by_id(db=db, article_id=article_id)
+    
+    if not db_article:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Artykuł nie istnieje."
+            )
+    
+    if db_article.author_id != user_id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Nie masz uprawnień do edytowania tego artykułu."
+        )
+    
 @router.get('/all', status_code=status.HTTP_200_OK)
 async def get_articles(sort_order: Union[None, Literal['asc', 'desc']] = None, db: Session = Depends(get_db)) -> Page[schemas.ResponseArticle]:
     
