@@ -19,7 +19,7 @@ class ResponseTag(BaseTag):
 # ARTICLE CONTENT ELELMENT
 
 class BaseArticleContentElement(BaseModel):
-    content_type: Literal['title', 'image', 'text']
+    content_type: Literal['title', 'image', 'text', 'listing']
     content: str
     
 class ResponseArticleContentElement(BaseArticleContentElement):

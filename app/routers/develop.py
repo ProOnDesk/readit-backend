@@ -50,7 +50,7 @@ def seed_data(
         tags = [get_or_create(db, Tag, value=fake.word()) for _ in range(10)]
         users_to_article: List[User] = users
         
-        content_types = ['image', 'title', 'text']
+        content_types = ['image', 'title', 'text', 'listing']
         
         articles = []
         for _ in range(article_amount):
