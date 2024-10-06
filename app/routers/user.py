@@ -254,6 +254,48 @@ async def get_user_by_user_id(
 
     return paginate(output)
 
+@router.get("/get/followers/{user_id}", status_code=status.HTTP_200_OK)
+async def get_followers_by_user_id(
+    user_id: Annotated[int, Path(title="User id")],
+    db: Session = Depends(get_db)
+) -> Page[UserProfileById]:
+    if not (user := get_user(db, user_id)):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail='Nieprawidłowe dane'
+        )
+
+    output = [
+        get_user(db, follow.follower_id) for follow in user.followers
+    ]
+
+    # if (articles := get_articles_by_user_id(db, user.id)):
+    #     output.update({"articles": []})
+    #     print(articles)
+
+    return paginate(output)
+
+@router.get("/get/followed_users/{user_id}", status_code=status.HTTP_200_OK)
+async def get_followed_users_by_user_id(
+    user_id: Annotated[int, Path(title="User id")],
+    db: Session = Depends(get_db)
+) -> Page[UserProfileById]:
+    if not (user := get_user(db, user_id)):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail='Nieprawidłowe dane'
+        )
+
+    output = [
+        get_user(db, follow.followed_id) for follow in user.following
+    ]
+
+    # if (articles := get_articles_by_user_id(db, user.id)):
+    #     output.update({"articles": []})
+    #     print(articles)
+
+    return paginate(output)
+
 class PasswordChangeModel(BaseModel):
     old_password: str
     new_password: str
