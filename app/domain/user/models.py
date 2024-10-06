@@ -40,6 +40,9 @@ class User(Base):
     @property
     def background_image_url(self):
         return IP_ADDRESS + self.background_image
+    
+    def __str__(self):
+        return self.email
 
 class Follower(Base):
     __tablename__ = "followers"
