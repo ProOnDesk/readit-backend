@@ -7,7 +7,7 @@ from app.domain.user.service import ( create_user, hash_password,
     get_user_by_email, get_user, create_follow, get_user_skills,
     get_follow_by_both_ids, delete_follow, get_follows_amount, verify_password,
     get_skill_by_skill_name, create_skill, create_skill_list_element,
-    delete_skill_list_element, get_top_users_by_most_articles, get_top_users_by_most_followers, search_users_by_first_name_and_last_name, get_followers_by_user_id, get_following_by_user_id 
+    delete_skill_list_element, get_top_users_by_most_articles, get_top_users_by_most_followers, search_users_by_first_name_and_last_name, get_followers_by_user_id as get_followers_by_id, get_following_by_user_id 
 )
 from app.domain.article.service import (
     get_articles_by_user_id
@@ -705,7 +705,7 @@ async def get_followers_amount(
     status_code=status.HTTP_200_OK
 )
 async def get_followers_following_me(user_id: Annotated[int, Depends(authenticate)], db: Session = Depends(get_db)) -> Page[UserFollowerPublic]:
-    db_followers = await get_followers_by_user_id(db=db, user_id=user_id)
+    db_followers =  get_followers_by_id(db=db, user_id=user_id)
     return paginate(db_followers)
 
 @router.get(
@@ -713,7 +713,7 @@ async def get_followers_following_me(user_id: Annotated[int, Depends(authenticat
     status_code=status.HTTP_200_OK
 )
 async def get_followers_followed_by_me(user_id: Annotated[int, Depends(authenticate)], db: Session = Depends(get_db)) -> Page[UserFollowerPublic]:
-    db_followers = await get_following_by_user_id(db=db, user_id=user_id)
+    db_followers =  get_following_by_user_id(db=db, user_id=user_id)
     return paginate(db_followers) 
     
 @router.get('/search', status_code=status.HTTP_200_OK)
