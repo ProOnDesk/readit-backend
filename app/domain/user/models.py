@@ -34,6 +34,12 @@ class User(Base):
     support_issues = relationship('Issue', back_populates='reported_by', cascade='all, delete-orphan')
     
     @property
+    def avg_rating_from_articles(self):
+        sum_rating = sum(article.rating for article in self.articles if article.rating is not None)
+        count = sum(1 for article in self.articles if article.rating is not None)
+        return round(sum_rating / count if count > 0 else 0, 2)
+    
+    @property
     def avatar_url(self):
         return IP_ADDRESS + self.avatar
     
