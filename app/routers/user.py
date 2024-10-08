@@ -705,7 +705,7 @@ async def get_followers_amount(
     status_code=status.HTTP_200_OK
 )
 async def get_followers_following_me(user_id: Annotated[int, Depends(authenticate)], db: Session = Depends(get_db)) -> Page[UserFollowerPublic]:
-    db_followers = get_followers_by_user_id(db=db, user_id=user_id)
+    db_followers = await get_followers_by_user_id(db=db, user_id=user_id)
     return paginate(db_followers)
 
 @router.get(
@@ -713,7 +713,7 @@ async def get_followers_following_me(user_id: Annotated[int, Depends(authenticat
     status_code=status.HTTP_200_OK
 )
 async def get_followers_followed_by_me(user_id: Annotated[int, Depends(authenticate)], db: Session = Depends(get_db)) -> Page[UserFollowerPublic]:
-    db_followers = get_following_by_user_id(db=db, user_id=user_id)
+    db_followers = await get_following_by_user_id(db=db, user_id=user_id)
     return paginate(db_followers) 
     
 @router.get('/search', status_code=status.HTTP_200_OK)
