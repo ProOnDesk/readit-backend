@@ -70,6 +70,8 @@ class Article(Base):
     wish_list = relationship('WishList', back_populates='article', cascade='all, delete-orphan')
     content_elements = relationship('ArticleContentElement', back_populates='article', cascade='all, delete-orphan')
     purchased_by = relationship('ArticlePurchase', back_populates='article', cascade='all, delete-orphan')
+    collections = relationship('CollectionArticle', back_populates='article', cascade='all, delete-orphan')
+
 
  
     def __repr__(self):
@@ -179,3 +181,25 @@ def update_article_rating_on_comment_change(mapper, connection, target):
     }, synchronize_session=False)
     
     session.commit()
+    
+class Collection(Base):
+    __tablename__ = "collections"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    title = Column(String(255), nullable=False)
+    
+    created_at = Column(DateTime, server_default=func.timezone('UTC', func.now()))
+    updated_at = Column(DateTime, server_default=func.timezone('UTC', func.now()), onupdate=func.timezone('UTC', func.now()))
+    
+    user = relationship('User', back_populates='collections')
+    articles = relationship('CollectionArticle', back_populates='collection', cascade='all, delete-orphan')
+
+class CollectionArticle(Base):
+    __tablename__ = "collection_articles"  # You also need to set tablename
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    article_id = Column(Integer, ForeignKey('articles.id', ondelete='CASCADE'), nullable=False)
+    collection_id = Column(Integer, ForeignKey('colletions.id', ondelete='CASCADE'), nullable=False)
+    
+    article = relationship('Article', back_populates='collections')
+    collection = relationship('Collection', back_populates='articles')
