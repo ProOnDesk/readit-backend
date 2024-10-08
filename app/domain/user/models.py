@@ -41,10 +41,14 @@ class User(Base):
     
     @property
     def avatar_url(self):
+        if self.avatar is None:
+            self.avatar = 'media/uploads/user/default.jpg'
         return IP_ADDRESS + self.avatar
     
     @property
     def background_image_url(self):
+        if self.background_image is None:
+            self.background_image = "media/uploads/user/default_bg_img.png"
         return IP_ADDRESS + self.background_image
     
     def __str__(self):

@@ -61,8 +61,8 @@ class User(UserBase):
 class UserPublic(BaseModel): 
     id: int
     sex: str
-    avatar: str | None = "media/uploads/user/default.jpg"
-    background_image: str | None = "media/uploads/user/default_bg_img.png"
+    avatar_url: str | None = "media/uploads/user/default.jpg"
+    background_image_url: str | None = "media/uploads/user/default_bg_img.png"
     short_description: str
     follower_count: int
     first_name: str
