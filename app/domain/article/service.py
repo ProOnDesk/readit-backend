@@ -239,3 +239,6 @@ def search_articles(
         query = query.order_by(sort_column.desc())
 
     return query.all()
+
+def get_collections_by_user_id(db: Session, user_id: int):
+    return db.query(models.Collection).filter(models.Collection.user_id == user_id).all()

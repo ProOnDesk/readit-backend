@@ -193,7 +193,15 @@ class Collection(Base):
     
     user = relationship('User', back_populates='collections')
     articles = relationship('CollectionArticle', back_populates='collection', cascade='all, delete-orphan')
-
+    
+    @property
+    def avg_rating_from_articles(self):
+        if self.articles is not None:
+            sum_rating = sum(article.avg_rating for article in self.articles)
+            counter = sum(1 for artcile in self.articles)
+            return round(sum_rating / counter, 2)
+        return 0
+    
 class CollectionArticle(Base):
     __tablename__ = "collection_articles"  # You also need to set tablename
 

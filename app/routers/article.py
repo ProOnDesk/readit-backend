@@ -356,3 +356,8 @@ async def get_bought_articles(user_id: Annotated[int, Depends(authenticate)], db
 @router.get('/is-bought/{article_id}')
 def is_article_bought(article_id: int, user_id: Annotated[int, Depends(authenticate)], db: Session = Depends(get_db)):
     return service.has_user_purchased_article(db=db, user_id=user_id, article_id=article_id)
+
+@router.get('/collections/me')
+def get_collections_for_me(user_id: Annotated[int, Depends(authenticate)], db: Annotated[Session, Depends(get_db)]):
+    db_collections = service.get_collections_by_user_id(db=db, user_id=user_id)
+    return paginate(db_collection)
