@@ -356,8 +356,34 @@ async def get_bought_articles(user_id: Annotated[int, Depends(authenticate)], db
 @router.get('/is-bought/{article_id}')
 def is_article_bought(article_id: int, user_id: Annotated[int, Depends(authenticate)], db: Session = Depends(get_db)):
     return service.has_user_purchased_article(db=db, user_id=user_id, article_id=article_id)
+@router.post('/collection')
+def create_collection(collection: schemas.CreateCollection, user_id: Annotated[int, Depends(authenticate)], db: Annotated[Session, Depends(get_db)]) -> schemas.Collection:
+    collection = collection.model_dump()
+    
+    articles = []
+    
+    for article_id in collection.pop('articles'):
+        article = service.get_article_by_id(db=db, article_id=article_id)
+        
+        if article is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Artykuł o id {article_id} nie został znaleziony."
+            )
+        if article.author_id != user_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Nie możesz dodać do swojej paczki artykułu, który nie jest Twojego autorstwa."
+            )
+            
+        articles.append(article)
+        
+    db_collection = service.create_collection(db=db, collection=collection, articles=articles, user_id=user_id)
+    
+    return db_collection
 
 @router.get('/collections/me')
-def get_collections_for_me(user_id: Annotated[int, Depends(authenticate)], db: Annotated[Session, Depends(get_db)]):
+def get_collections_for_me(user_id: Annotated[int, Depends(authenticate)], db: Annotated[Session, Depends(get_db)]) -> Page[schemas.Collection]:
     db_collections = service.get_collections_by_user_id(db=db, user_id=user_id)
-    return paginate(db_collection)
+    
+    return paginate(db_collections)

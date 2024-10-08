@@ -33,7 +33,7 @@ class User(Base):
 
     support_issues = relationship('Issue', back_populates='reported_by', cascade='all, delete-orphan')
     
-    collections = relationship('Collection', back_populates='user', cascade='all, delete-orphan')
+    collections = relationship('Collection', back_populates='owner', cascade='all, delete-orphan')
     
     @property
     def avatar_url(self):

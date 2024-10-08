@@ -240,5 +240,14 @@ def search_articles(
 
     return query.all()
 
+def create_collection(db: Session, collection: dict, articles: list[models.Article], user_id: int):
+    db_collection = models.Collection(articles=articles, owner_id=user_id, **collection)
+    db.add(db_collection)
+    db.commit()
+    db.refresh(db_collection)
+    
+    return db_collection
+    
+    
 def get_collections_by_user_id(db: Session, user_id: int):
-    return db.query(models.Collection).filter(models.Collection.user_id == user_id).all()
+    return db.query(models.Collection).filter(models.Collection.owner_id == user_id).all()

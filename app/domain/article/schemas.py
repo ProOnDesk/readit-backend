@@ -81,3 +81,16 @@ class PurchasedArticle(BaseModel):
     
 class Slug(BaseModel):
     slug: str
+
+class CreateCollection(BaseModel):
+    title: str
+    articles: list[int]
+    
+class Collection(BaseModel):
+    id: int
+    owner_id: int
+    title: str
+    created_at: datetime
+    updated_at: datetime
+    articles_count: int
+    avg_rating_from_articles: float

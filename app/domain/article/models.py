@@ -70,7 +70,7 @@ class Article(Base):
     wish_list = relationship('WishList', back_populates='article', cascade='all, delete-orphan')
     content_elements = relationship('ArticleContentElement', back_populates='article', cascade='all, delete-orphan')
     purchased_by = relationship('ArticlePurchase', back_populates='article', cascade='all, delete-orphan')
-    collections = relationship('CollectionArticle', back_populates='article', cascade='all, delete-orphan')
+    collections = relationship('Collection', secondary='collection_articles', back_populates='articles')
 
 
  
@@ -185,29 +185,32 @@ def update_article_rating_on_comment_change(mapper, connection, target):
 class Collection(Base):
     __tablename__ = "collections"
     id = Column(Integer, primary_key=True, autoincrement=True)
-    user_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    owner_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
     title = Column(String(255), nullable=False)
     
     created_at = Column(DateTime, server_default=func.timezone('UTC', func.now()))
     updated_at = Column(DateTime, server_default=func.timezone('UTC', func.now()), onupdate=func.timezone('UTC', func.now()))
     
-    user = relationship('User', back_populates='collections')
-    articles = relationship('CollectionArticle', back_populates='collection', cascade='all, delete-orphan')
+    owner = relationship('User', back_populates='collections')
+    articles = relationship('Article', secondary='collection_articles', back_populates='collections')
+
+    @property
+    def avg_rating_from_articles(self) -> float:
+        if self.articles:
+            sum_rating = sum(article.avg_rating for article in self.articles)
+            counter = len(self.articles)
+            return round(sum_rating / counter, 2) if counter > 0 else 0.0
+        
+        return 0.0
     
     @property
-    def avg_rating_from_articles(self):
-        if self.articles is not None:
-            sum_rating = sum(article.avg_rating for article in self.articles)
-            counter = sum(1 for artcile in self.articles)
-            return round(sum_rating / counter, 2)
-        return 0
+    def articles_count(self) -> int:
+        return len(self.articles) if self.articles else 0
     
 class CollectionArticle(Base):
-    __tablename__ = "collection_articles"  # You also need to set tablename
+    __tablename__ = "collection_articles"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
+    collection_id = Column(Integer, ForeignKey('collections.id', ondelete='CASCADE'), nullable=False)
     article_id = Column(Integer, ForeignKey('articles.id', ondelete='CASCADE'), nullable=False)
-    collection_id = Column(Integer, ForeignKey('colletions.id', ondelete='CASCADE'), nullable=False)
     
-    article = relationship('Article', back_populates='collections')
-    collection = relationship('Collection', back_populates='articles')
