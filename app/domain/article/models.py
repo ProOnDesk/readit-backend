@@ -1,5 +1,5 @@
 from fastapi import Depends
-from sqlalchemy import Boolean, Column, Float, ForeignKey, Integer, String, Text, Table, event, UniqueConstraint, func
+from sqlalchemy import Boolean, Column, Float, ForeignKey, Integer, String, Text, Table, event, UniqueConstraint, func, CheckConstraint
 from sqlalchemy.orm import relationship, Session
 from sqlalchemy.types import DateTime
 from ..model_base import Base
@@ -187,6 +187,9 @@ class Collection(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     owner_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
     title = Column(String(255), nullable=False)
+    short_description = Column(String(500))
+    discount_percentage = Column(Integer, CheckConstraint('discount_percentage >= 0 AND discount_percentage <= 100'), nullable=False, default=0)
+    collection_image = Column(String(255), nullable=False)
     
     created_at = Column(DateTime, server_default=func.timezone('UTC', func.now()))
     updated_at = Column(DateTime, server_default=func.timezone('UTC', func.now()), onupdate=func.timezone('UTC', func.now()))
@@ -195,17 +198,29 @@ class Collection(Base):
     articles = relationship('Article', secondary='collection_articles', back_populates='collections')
 
     @property
-    def avg_rating_from_articles(self) -> float:
-        if self.articles:
-            sum_rating = sum(article.avg_rating for article in self.articles)
-            counter = len(self.articles)
-            return round(sum_rating / counter, 2) if counter > 0 else 0.0
-        
-        return 0.0
+    def articles_id(self) -> list[int]:
+        return [article.id for article in self.articles]
+    
+    @property
+    def rating(self) -> float:
+        articles = [article.rating for article in self.articles if article.rating != 0]
+        sum_rating = sum(articles)
+        counter = len(articles)
+        return round(sum_rating / counter, 2) if counter > 0 else 0.0
     
     @property
     def articles_count(self) -> int:
         return len(self.articles) if self.articles else 0
+    
+    @property
+    def price(self) -> float:
+        total_price = sum(article.price for article in self.articles)
+        discount = (self.discount_percentage / 100) * total_price
+        return round(total_price - discount, 2)
+    
+    @property
+    def collection_image_url(self):
+        return IP_ADDRESS + self.collection_image
     
 class CollectionArticle(Base):
     __tablename__ = "collection_articles"

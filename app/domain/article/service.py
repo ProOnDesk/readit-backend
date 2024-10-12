@@ -240,7 +240,7 @@ def search_articles(
 
     return query.all()
 
-def create_collection(db: Session, collection: dict, articles: list[models.Article], user_id: int):
+def create_collection(db: Session, collection: schemas.CreateArticle, articles: list[models.Article], user_id: int) -> models.Collection:
     db_collection = models.Collection(articles=articles, owner_id=user_id, **collection)
     db.add(db_collection)
     db.commit()
@@ -248,6 +248,27 @@ def create_collection(db: Session, collection: dict, articles: list[models.Artic
     
     return db_collection
     
-    
-def get_collections_by_user_id(db: Session, user_id: int):
+def get_collections_by_user_id(db: Session, user_id: int) -> list[models.Collection]:
     return db.query(models.Collection).filter(models.Collection.owner_id == user_id).all()
+
+def get_collections_by_article_id(db: Session, article_id: int) -> list[models.Collection]:
+    return db.query(models.Collection).join(models.CollectionArticle).filter(models.CollectionArticle.article_id == article_id).all()
+
+def get_collection_by_id(db: Session, collection_id: int) -> models.Collection:
+    return db.query(models.Collection).filter(models.Collection.id == collection_id).first()
+
+def delete_collection(db: Session, db_collection: models.Collection) -> bool:
+    db.delete(db_collection)
+    db.commit()
+    return True
+    
+def partial_update_collection(db: Session, db_collection: models.Collection, update_collection: schemas.UpdateCollection | dict):
+    if isinstance(update_collection, schemas.UpdateCollection):
+        update_collection = collection.model_dump(exclude_unset=True)
+
+    for field, value in update_collection.items():
+        setattr(db_collection, field, value)
+     
+    db.commit()
+    db.refresh(db_collection)
+    return db_collection
