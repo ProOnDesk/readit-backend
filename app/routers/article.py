@@ -539,3 +539,25 @@ def delete_user_all_collections(user_id: Annotated[int , Depends(authenticate)],
         )
 
     return all([service.delete_collection(db=db, db_collection=db_collection) for db_collection in db_collections])
+
+@router.post('/collection/buy/{collection_id}')
+def buy_collection_by_id(collection_id: int, user_id: Annotated[int, Depends(authenticate)], db: Annotated[Session, Depends(get_db)]):
+    db_collection = service.get_collection_by_id(db=db, collection_id=collection_id)
+    
+    if db_collection is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Nie znaleziono paczki."
+        )
+        
+    if db_collection.owner_id == user_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Nie możesz kupić własnej paczki."
+        )
+    for article in db_collection.articles:
+        if service.has_user_purchased_article(db=db, user_id=user_id, article_id=article.id):
+            continue
+        service.add_purchased_article(db=db, user_id=user_id, article_id=article.id)
+    
+    return {"detail": "Paczka z artykułami została pomyślnie zakupiona."} 
