@@ -72,14 +72,23 @@ class Article(Base):
     purchased_by = relationship('ArticlePurchase', back_populates='article', cascade='all, delete-orphan')
     collections = relationship('Collection', secondary='collection_articles', back_populates='articles')
 
-
- 
+        
     def __repr__(self):
         return f"<Article(id={self.id}, title={self.title}, author={self.author}, created_at={self.created_at})>"
     
     @property
     def title_image_url(self):
         return IP_ADDRESS + self.title_image
+    
+    @property
+    def is_bought(self):
+        if self._is_bought is None:
+            raise ValueError("The '_is_bought' attribute is not set.")
+        return self._is_bought
+        
+    @is_bought.setter
+    def is_bought(self, value):
+        self._is_bought = value
     
 @event.listens_for(Article, 'after_insert')
 def increment_article_count(mapper, connection, target):

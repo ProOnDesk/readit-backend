@@ -62,12 +62,15 @@ class ResponseArticle(BaseArticle):
     rating: float
     rating_count: int
 
+class ResponseArticleWishList(ResponseArticle):
+    is_bought: bool
+
 class ResponseArticleDetail(ResponseArticle):
     content_elements: list[ResponseArticleContentElement]
 
 # WISH LIST
 class BaseWishList(BaseModel):
-    article: ResponseArticle
+    article: ResponseArticleWishList
     user_id: int
 
 class ResponseWishList(BaseWishList):

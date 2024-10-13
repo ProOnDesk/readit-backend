@@ -275,6 +275,9 @@ async def change_article_is_in_wish_list_or_not(article_id: int, user_id: Annota
 @router.get('/wish-list/all/me', status_code=status.HTTP_200_OK)
 async def get_articles_from_wish_list(user_id: Annotated[int, Depends(authenticate)], sort_order: Union[None, Literal['asc', 'desc']] = None, db: Session = Depends(get_db)) ->Page[schemas.ResponseWishList]:
     db_wish_list = service.get_wish_list_by_user_id(db=db, user_id=user_id, sort_order=sort_order)
+    for wish in db_wish_list:
+        wish.article.is_bought = service.has_user_purchased_article(db=db, user_id=user_id, article_id=wish.article.id)
+        
     return paginate(db_wish_list)
 
 @router.delete('/wish-list/delete/{article_id}', status_code=status.HTTP_200_OK)
