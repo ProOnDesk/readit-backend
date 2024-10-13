@@ -196,7 +196,7 @@ class Collection(Base):
     
     owner = relationship('User', back_populates='collections')
     articles = relationship('Article', secondary='collection_articles', back_populates='collections')
-
+    _price = None
     @property
     def articles_id(self) -> list[int]:
         return [article.id for article in self.articles]
@@ -214,9 +214,16 @@ class Collection(Base):
     
     @property
     def price(self) -> float:
+        if self._price is not None:
+            return self._price
+        
         total_price = sum(article.price for article in self.articles)
         discount = (self.discount_percentage / 100) * total_price
         return round(total_price - discount, 2)
+    
+    @price.setter
+    def price(self, value: float):
+        self._price = value
     
     @property
     def collection_image_url(self):

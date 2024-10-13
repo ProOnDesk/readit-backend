@@ -429,6 +429,42 @@ def get_collections_by_article_id(article_id: int, db: Annotated[Session, Depend
     db_collections = service.get_collections_by_article_id(db=db, article_id=article_id)
     return paginate(db_collections)
 
+@router.get('/collections/user/logged/{user_id}', status_code=status.HTTP_200_OK)
+def get_collections_by_user_id(user_id: int, authenticated_user_id: Annotated[int, Depends(authenticate)], db: Annotated[Session, Depends(get_db)]) -> Page[schemas.Collection]:
+    db_collections = service.get_collections_by_user_id(db=db, user_id=user_id)
+    
+    for collection in db_collections:
+        total_price = 0
+        
+        for article in collection.articles:
+            if not service.has_user_purchased_article(db=db, user_id=authenticated_user_id, article_id=article.id):
+                total_price += article.price
+        
+        discount = (collection.discount_percentage / 100) * total_price
+        new_price = total_price - discount
+        
+        collection.price = new_price
+    
+    return paginate(db_collections)
+
+@router.get('/collections/article/logged/{article_id}', status_code=status.HTTP_200_OK)
+def get_collections_by_article_id(article_id: int, authenticated_user_id: Annotated[int, Depends(authenticate)], db: Annotated[Session, Depends(get_db)]) -> Page[schemas.Collection]:
+    db_collections = service.get_collections_by_user_id(db=db, user_id=user_id)
+    
+    for collection in db_collections:
+        total_price = 0
+        
+        for article in collection.articles:
+            if not service.has_user_purchased_article(db=db, user_id=authenticated_user_id, article_id=article.id):
+                total_price += article.price
+        
+        discount = (collection.discount_percentage / 100) * total_price
+        new_price = total_price - discount
+        
+        collection.price = new_price
+    
+    return paginate(db_collections)
+
 @router.patch('/collection/{collection_id}', status_code=status.HTTP_200_OK)
 async def edit_partial_collection_by_id(
     collection_id: int,

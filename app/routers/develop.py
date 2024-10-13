@@ -40,7 +40,8 @@ def seed_data(
                 email=fake.email(),
                 hashed_password=hash_password('password'),
                 sex=fake.random_element(['Male', 'Female']),
-                short_description=fake.sentence()
+                short_description=fake.sentence(),
+                is_active=True
             ) for _ in range(user_amount)
         ]
         
