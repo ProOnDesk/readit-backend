@@ -44,6 +44,9 @@ class UpdatePartialArticle(BaseModel):
     price: float | None
     content_elements: list[BaseArticleContentElement] | None
 
+class ResponseUpdateArticle(UpdatePartialArticle):
+    title_image_url: str
+    
 class BaseCommentArticle(BaseModel):
     content: str
     rating: Annotated[int, Field(ge=1, le=5)]
