@@ -273,3 +273,4 @@ def partial_update_article(db: Session, db_article: models.Article, article: Uni
     db.refresh(db_article)
     db_article.content_elements = sorted(db_article.content_elements,key=lambda e: e.order)
     return db_article
+
