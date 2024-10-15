@@ -29,7 +29,7 @@ def check_user_has_permission_for_article(
         )
     
 def check_file_if_image(file: UploadFile) -> None:
-    if file.filename.split(".")[-1] not in ['img', 'png', 'jpg', 'jpeg']:
+    if file.filename.split(".")[-1] not in ['img', 'png', 'jpg', 'jpeg', 'JPG', 'JPEG', 'PNG', 'IMG']:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail='Akceptowane są tylko pliki o formatach img, png, jpg i jpeg.'
