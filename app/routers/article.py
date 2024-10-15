@@ -107,7 +107,7 @@ async def update_partial_article_by_id(
     article_id: int,
     user_id: Annotated[int, Depends(authenticate)],
     db: Annotated[Session, Depends(get_db)],
-    images_for_content_type_image: Union[None, list[UploadFile]] = None,
+    images_for_content_type_image: list[UploadFile] = None,
     title_image: Union[Annotated[UploadFile, File(...)]] = None,
     article: Annotated[Union[schemas.CreateArticle, str], Form(...)] = None
 
