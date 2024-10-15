@@ -239,3 +239,37 @@ def search_articles(
         query = query.order_by(sort_column.desc())
 
     return query.all()
+
+def partial_update_article(db: Session, db_article: models.Article, article: Union[schemas.UpdatePartialArticle, dict], title_image: Union[str, None]) -> models.Article:
+
+    if isinstance(article, schemas.UpdatePartialArticle):
+        article = article.model_dump(exlude_unset=True)
+        
+    if title_image is not None:
+        setattr(db_article, 'title_image', title_image)
+        
+    for attribute, value in article.items():
+        if attribute == 'content_elements':
+            db_content_elements = [
+                models.ArticleContentElement(
+                    article_id=db_article.id, 
+                    order=order + 1, 
+                    **content_element
+                ) 
+                for order, content_element in enumerate(value, start=0)
+            ]
+            setattr(db_article, attribute, db_content_elements)
+            
+        elif attribute == 'tags':
+            tags = [get_or_create(db, models.Tag, value=tag['value']) for tag in value]
+            if len(tags) > 3:
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Zbyt wiele tagów. Maksymalnie dozwolone jest 3.")
+            setattr(db_article, attribute, tags)
+        else:
+            setattr(db_article, attribute, value)
+
+        
+    db.commit()
+    db.refresh(db_article)
+    db_article.content_elements = sorted(db_article.content_elements,key=lambda e: e.order)
+    return db_article
