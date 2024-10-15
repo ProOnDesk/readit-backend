@@ -54,7 +54,7 @@ async def create_article(
             f.write(contents)
         title_image_url = f'{IMAGE_URL}{title_image.filename}'
         
-        image_content_elements = [ce for ce in article['content_elements'] if ce['content_type']]
+        image_content_elements = [ce for ce in article['content_elements'] if ce['content_type'] == 'image']
 
         if images_for_content_type_image: 
             if len(images_for_content_type_image) != len(image_content_elements):
@@ -99,6 +99,7 @@ async def create_article(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"An unexpected error occurred: {str(e)}"
         )
+        
 @router.post('/for-edit/slug', status_code=status.HTTP_200_OK)
 async def get_for_edit_article_by_id(slug: schemas.Slug, user_id: Annotated[int, Depends(authenticate)], db: Annotated[Session, Depends(get_db)]) -> schemas.ResponseUpdateArticle:
     db_article = service.get_article_by_slug(db=db, slug_title=slug.slug)
