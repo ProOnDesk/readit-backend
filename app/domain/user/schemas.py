@@ -38,6 +38,7 @@ class UserProfile(UserBase):
     follower_count: int
     article_count: int = 0
     skill_list: list[ReturnSkillListElement] | None = None
+    avg_rating_from_articles: float
 
     class Config:
         from_attributes = True
@@ -69,6 +70,8 @@ class UserPublic(BaseModel):
     last_name: str
     article_count: int
     avg_rating_from_articles: float
+    skill_list: list[ReturnSkillListElement] | None = None
+
     
 class Follower(BaseModel):
     id: int

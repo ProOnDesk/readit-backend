@@ -186,7 +186,8 @@ async def get_user_by_access_token(
         "first_name": user.first_name,
         "last_name": user.last_name,
         "article_count": len(user.articles),
-        "skill_list": get_user_skills(db, user_id)
+        "skill_list": get_user_skills(db, user_id),
+        "avg_rating_from_articles": user.avg_rating_from_articles
     }
 
 class UserProfileById(BaseModel):
@@ -201,6 +202,7 @@ class UserProfileById(BaseModel):
     first_name: str
     last_name: str
     article_count: int = 0
+    avg_rating_from_articles: float
     skill_list: list[ReturnSkillListElement] | None = None
 
 @router.get("/get/{user_id}", status_code=status.HTTP_200_OK)
@@ -226,7 +228,8 @@ async def get_user_by_user_id(
         "first_name": user.first_name,
         "last_name": user.last_name,
         "article_count": len(user.articles),
-        "skill_list": get_user_skills(db, user_id)
+        "skill_list": get_user_skills(db, user_id),
+        "avg_rating_from_articles": user.avg_rating_from_articles
     }
 
     # if (articles := get_articles_by_user_id(db, user.id)):
