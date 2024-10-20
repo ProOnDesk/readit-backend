@@ -427,7 +427,8 @@ async def modify_avatar(
         "first_name": user.first_name,
         "last_name": user.last_name,
         "article_count": len(user.articles),
-        "skill_list": get_user_skills(db, user_id)
+        "skill_list": get_user_skills(db, user_id),
+        "avg_rating_from_articles": user.avg_rating_from_articles,
     }
 
 @router.patch("/modify/background-image", status_code=status.HTTP_200_OK)
@@ -471,7 +472,8 @@ async def modify_background_image(
         "first_name": user.first_name,
         "last_name": user.last_name,
         "article_count": len(user.articles),
-        "skill_list": get_user_skills(db, user_id)
+        "skill_list": get_user_skills(db, user_id),
+        "avg_rating_from_articles": user.avg_rating_from_articles
     }
 
 class CreateSkillModel(BaseModel):
@@ -508,7 +510,8 @@ async def add_skill(
         "first_name": user.first_name,
         "last_name": user.last_name,
         "article_count": len(user.articles),
-        "skill_list": get_user_skills(db, user_id)
+        "skill_list": get_user_skills(db, user_id),
+        "avg_rating_from_articles": user.avg_rating_from_articles
     }
 
 @router.delete("/skill/{skill_id}", status_code=status.HTTP_200_OK)
@@ -538,7 +541,8 @@ async def remove_skill(
         "first_name": user.first_name,
         "last_name": user.last_name,
         "article_count": len(user.articles),
-        "skill_list": get_user_skills(db, user_id)
+        "skill_list": get_user_skills(db, user_id),
+        "avg_rating_from_articles": user.avg_rating_from_articles
     }
 
 @router.get("/articles/top", status_code=status.HTTP_200_OK)
