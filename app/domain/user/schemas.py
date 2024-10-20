@@ -24,8 +24,8 @@ class UserCreate(UserBase):
     password: str
     avatar: str | None = "media/uploads/user/default.jpg"
     background_image: str | None = "media/uploads/user/default_bg_img.png"
-    short_description: str | None = ""
-    description: str | None = ""
+    short_description: str = ""
+    description: str = ""
     is_active: bool | None = False
     follower_count: int | None = 0
 
