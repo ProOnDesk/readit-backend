@@ -101,7 +101,7 @@ async def create_article(
         )
         
 @router.post('/for-edit/slug', status_code=status.HTTP_200_OK)
-async def get_for_edit_article_by_id(slug: schemas.Slug, user_id: Annotated[int, Depends(authenticate)], db: Annotated[Session, Depends(get_db)]) -> schemas.UpdatePartialArticle:
+async def get_for_edit_article_by_id(slug: schemas.Slug, user_id: Annotated[int, Depends(authenticate)], db: Annotated[Session, Depends(get_db)]) -> schemas.ResponseUpdateArticle:
     db_article = service.get_article_by_slug(db=db, slug_title=slug.slug)
     if db_article is None:
         raise HTTPException(

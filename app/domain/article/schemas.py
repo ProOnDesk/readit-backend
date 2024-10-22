@@ -46,6 +46,7 @@ class UpdatePartialArticle(BaseModel):
 
 class ResponseUpdateArticle(UpdatePartialArticle):
     title_image_url: str
+    id: int
     
 class BaseCommentArticle(BaseModel):
     content: str
