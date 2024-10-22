@@ -101,7 +101,7 @@ async def create_article(
         )
         
 @router.post('/for-edit/slug', status_code=status.HTTP_200_OK)
-async def get_for_edit_article_by_id(slug: schemas.Slug, user_id: Annotated[int, Depends(authenticate)], db: Annotated[Session, Depends(get_db)]) -> schemas.ResponseUpdateArticle:
+async def get_for_edit_article_by_id(slug: schemas.Slug, user_id: Annotated[int, Depends(authenticate)], db: Annotated[Session, Depends(get_db)]) -> schemas.UpdatePartialArticle:
     db_article = service.get_article_by_slug(db=db, slug_title=slug.slug)
     if db_article is None:
         raise HTTPException(
@@ -125,7 +125,7 @@ async def update_partial_article_by_id(
     article_id: int,
     user_id: Annotated[int, Depends(authenticate)],
     db: Annotated[Session, Depends(get_db)],
-    images_for_content_type_image: Union[list[UploadFile], str, None] = None,
+    images_for_content_type_image: list[UploadFile] = None,
     title_image: Union[Annotated[UploadFile, File(...)]] = None,
     article: Annotated[Union[schemas.CreateArticle, str], Form(...)] = None
 
@@ -162,12 +162,12 @@ async def update_partial_article_by_id(
             with open(f"{IMAGE_DIR}{title_image.filename}", "wb") as f:
                 f.write(contents)
             title_image_url = f'{IMAGE_URL}{title_image.filename}'
-        
-        image_content_elements = [ce for ce in article['content_elements'] if ce['content_type'] == 'image']
-        len_image_content_elements = len([ce for ce in article['content_elements'] if ce['content_type'] == 'image' and
-                                          ce['content'] == ''])
+            
+        if images_for_content_type_image:
+            image_content_elements = [ce for ce in article['content_elements'] if ce['content_type'] == 'image']
+            len_image_content_elements = len([ce for ce in article['content_elements'] if ce['content_type'] == 'image' and
+                                            ce['content'] == ''])
 
-        if isinstance(images_for_content_type_image, UploadFile): 
             if len(images_for_content_type_image) != len_image_content_elements:
                     raise HTTPException(
                         status_code=status.HTTP_400_BAD_REQUEST,
