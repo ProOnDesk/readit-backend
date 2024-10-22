@@ -112,7 +112,7 @@ async def get_for_edit_article_by_id(slug: schemas.Slug, user_id: Annotated[int,
     if db_article.author_id != user_id:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Nie masz uprawnień do wyświetlania tego artykulu do edycji"
+            detail="Nie masz uprawnień do wyświetlania tego artykulu do edycji."
         )
         
     return db_article
@@ -125,7 +125,7 @@ async def update_partial_article_by_id(
     article_id: int,
     user_id: Annotated[int, Depends(authenticate)],
     db: Annotated[Session, Depends(get_db)],
-    images_for_content_type_image: list[UploadFile] = None,
+    images_for_content_type_image: Union[list[UploadFile], str, None] = None,
     title_image: Union[Annotated[UploadFile, File(...)]] = None,
     article: Annotated[Union[schemas.CreateArticle, str], Form(...)] = None
 
@@ -167,7 +167,7 @@ async def update_partial_article_by_id(
         len_image_content_elements = len([ce for ce in article['content_elements'] if ce['content_type'] == 'image' and
                                           ce['content'] == ''])
 
-        if images_for_content_type_image: 
+        if isinstance(images_for_content_type_image, UploadFile): 
             if len(images_for_content_type_image) != len_image_content_elements:
                     raise HTTPException(
                         status_code=status.HTTP_400_BAD_REQUEST,
@@ -181,13 +181,6 @@ async def update_partial_article_by_id(
                     with open(f"{IMAGE_DIR}{image.filename}", "wb") as f:
                         f.write(contents)
                     content_element['content'] = f'{IP_ADDRESS}{IMAGE_URL}{image.filename}'
-        else:
-            if len(image_content_elements) != 0:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail='Number of images does not match number of content elements.'
-                    )
-
         
         db_article = service.partial_update_article(db=db, db_article=db_article, article=article, title_image=title_image_url)
         return db_article
