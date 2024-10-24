@@ -134,6 +134,23 @@ async def get_my_articles(
     )
     
     return paginate(db_articles) 
+@router.post('/for-edit/slug', status_code=status.HTTP_200_OK)
+async def get_for_edit_article_by_id(slug: schemas.Slug, user_id: Annotated[int, Depends(authenticate)], db: Annotated[Session, Depends(get_db)]) -> schemas.UpdatePartialArticle:
+    db_article = service.get_article_by_slug(db=db, slug_title=slug.slug)
+    
+    if db_article is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Artykuł nie istnieje."
+            )
+
+    if db_article.author_id != user_id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Nie masz uprawnień do wyświetlania tego artykulu do edycji."
+        )
+
+    return db_article
 
 @router.get('/for-edit/id/{article_id}', status_code=status.HTTP_200_OK)
 async def get_for_edit_article_by_id(article_id: int, user_id: Annotated[int, Depends(authenticate)], db: Annotated[Session, Depends(get_db)]) -> schemas.UpdatePartialArticle:
@@ -192,7 +209,7 @@ async def update_partial_article_by_id(
                 f.write(contents)
             title_image_url = f'{IMAGE_URL}{title_image.filename}'
         
-        image_content_elements = [ce for ce in article['content_elements'] if ce['content_type'] == 'image']
+        image_content_elements = [ce for ce in article['content_elements'] if ce['content_type'] == 'image' and ce['content'] == '']
         len_image_content_elements = len([ce for ce in article['content_elements'] if ce['content_type'] == 'image' and
                                           ce['content'] == ''])
 
