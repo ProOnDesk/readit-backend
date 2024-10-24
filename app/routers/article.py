@@ -54,7 +54,7 @@ async def create_article(
             f.write(contents)
         title_image_url = f'{IMAGE_URL}{title_image.filename}'
         
-        image_content_elements = [ce for ce in article['content_elements'] if ce['content_type']]
+        image_content_elements = [ce for ce in article['content_elements'] if ce['content_type'] == 'image']
 
         if images_for_content_type_image: 
             if len(images_for_content_type_image) != len(image_content_elements):
@@ -210,8 +210,7 @@ async def update_partial_article_by_id(
             title_image_url = f'{IMAGE_URL}{title_image.filename}'
         
         image_content_elements = [ce for ce in article['content_elements'] if ce['content_type'] == 'image' and ce['content'] == '']
-        len_image_content_elements = len([ce for ce in article['content_elements'] if ce['content_type'] == 'image' and
-                                          ce['content'] == ''])
+        len_image_content_elements = len(image_content_elements)
 
         if images_for_content_type_image: 
             if len(images_for_content_type_image) != len_image_content_elements:
