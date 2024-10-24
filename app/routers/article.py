@@ -135,7 +135,7 @@ async def get_my_articles(
     
     return paginate(db_articles) 
 @router.post('/for-edit/slug', status_code=status.HTTP_200_OK)
-async def get_for_edit_article_by_id(slug: schemas.Slug, user_id: Annotated[int, Depends(authenticate)], db: Annotated[Session, Depends(get_db)]) -> schemas.UpdatePartialArticle:
+async def get_for_edit_article_by_id(slug: schemas.Slug, user_id: Annotated[int, Depends(authenticate)], db: Annotated[Session, Depends(get_db)]) -> schemas.ResponseUpdateArticle:
     db_article = service.get_article_by_slug(db=db, slug_title=slug.slug)
     
     if db_article is None:
@@ -153,7 +153,7 @@ async def get_for_edit_article_by_id(slug: schemas.Slug, user_id: Annotated[int,
     return db_article
 
 @router.get('/for-edit/id/{article_id}', status_code=status.HTTP_200_OK)
-async def get_for_edit_article_by_id(article_id: int, user_id: Annotated[int, Depends(authenticate)], db: Annotated[Session, Depends(get_db)]) -> schemas.UpdatePartialArticle:
+async def get_for_edit_article_by_id(article_id: int, user_id: Annotated[int, Depends(authenticate)], db: Annotated[Session, Depends(get_db)]) -> schemas.ResponseUpdateArticle:
     db_article = service.get_article_by_id(db=db, article_id=article_id)
     if db_article.author_id != user_id:
         raise HTTPException(
