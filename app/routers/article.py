@@ -101,8 +101,40 @@ async def create_article(
         )
         
 @router.get('/me', status_code=status.HTTP_200_OK)
-async def get_my_articles(user_id: Annotated[int, Depends(authenticate)], db: Annotated[Session, Depends(get_db)]) -> Page[schemas.ResponseArticle]:
-    return paginate(service.get_articles_by_user_id(db=db, user_id=user_id))    
+async def get_my_articles(
+    user_id: Annotated[int, Depends(authenticate)],
+    db: Annotated[Session, Depends(get_db)],
+        value: str = "",
+    tags: list[str] = Query(default=[]),
+    min_view_count: Optional[int] = None,
+    max_view_count: Optional[int] = None,
+    min_price: Optional[float] = None,
+    max_price: Optional[float] = None,
+    min_rating: Optional[float] = None,
+    max_rating: Optional[float] = None,
+    is_free: Optional[bool] = None,
+    sort_order: Literal['asc', 'desc'] = 'desc',
+    sort_by: Literal['views', 'date', 'price', 'rating'] = 'date',
+    ) -> Page[schemas.ResponseArticle]:
+    
+    db_articles = service.search_articles(
+        db=db,
+        value=value,
+        tags=tags,
+        author_id=user_id,
+        min_view_count=min_view_count,
+        max_view_count=max_view_count,
+        min_price=min_price,
+        max_price=max_price,
+        min_rating=min_rating,
+        max_rating=max_rating,
+        is_free=is_free,
+        sort_order=sort_order,
+        sort_by=sort_by
+    )
+    
+    return paginate(db_articles) 
+
 @router.get('/for-edit/id/{article_id}', status_code=status.HTTP_200_OK)
 async def get_for_edit_article_by_id(article_id: int, user_id: Annotated[int, Depends(authenticate)], db: Annotated[Session, Depends(get_db)]) -> schemas.UpdatePartialArticle:
     db_article = service.get_article_by_id(db=db, article_id=article_id)
@@ -225,7 +257,6 @@ async def search_article_by_title_and_summary(
     db: Session = Depends(get_db)
 ) -> Page[schemas.ResponseArticle]:
     
-    # Perform the search with the filters
     db_articles = service.search_articles(
         db=db,
         value=value,
@@ -242,8 +273,6 @@ async def search_article_by_title_and_summary(
         sort_by=sort_by
     )
     
-    # Paginate the result
-    print(db_articles)
     return paginate(db_articles)
 
 @router.get('/detail/id/{article_id}', status_code=status.HTTP_200_OK)
