@@ -54,7 +54,7 @@ async def create_article(
             f.write(contents)
         title_image_url = f'{IMAGE_URL}{title_image.filename}'
         
-        image_content_elements = [ce for ce in article['content_elements'] if ce['content_type'] == 'image']
+        image_content_elements = [ce for ce in article['content_elements'] if ce['content_type']]
 
         if images_for_content_type_image: 
             if len(images_for_content_type_image) != len(image_content_elements):
@@ -99,6 +99,157 @@ async def create_article(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"An unexpected error occurred: {str(e)}"
         )
+        
+@router.get('/me', status_code=status.HTTP_200_OK)
+async def get_my_articles(
+    user_id: Annotated[int, Depends(authenticate)],
+    db: Annotated[Session, Depends(get_db)],
+        value: str = "",
+    tags: list[str] = Query(default=[]),
+    min_view_count: Optional[int] = None,
+    max_view_count: Optional[int] = None,
+    min_price: Optional[float] = None,
+    max_price: Optional[float] = None,
+    min_rating: Optional[float] = None,
+    max_rating: Optional[float] = None,
+    is_free: Optional[bool] = None,
+    sort_order: Literal['asc', 'desc'] = 'desc',
+    sort_by: Literal['views', 'date', 'price', 'rating'] = 'date',
+    ) -> Page[schemas.ResponseArticle]:
+    
+    db_articles = service.search_articles(
+        db=db,
+        value=value,
+        tags=tags,
+        author_id=user_id,
+        min_view_count=min_view_count,
+        max_view_count=max_view_count,
+        min_price=min_price,
+        max_price=max_price,
+        min_rating=min_rating,
+        max_rating=max_rating,
+        is_free=is_free,
+        sort_order=sort_order,
+        sort_by=sort_by
+    )
+    
+    return paginate(db_articles) 
+@router.post('/for-edit/slug', status_code=status.HTTP_200_OK)
+async def get_for_edit_article_by_id(slug: schemas.Slug, user_id: Annotated[int, Depends(authenticate)], db: Annotated[Session, Depends(get_db)]) -> schemas.ResponseUpdateArticle:
+    db_article = service.get_article_by_slug(db=db, slug_title=slug.slug)
+    
+    if db_article is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Artykuł nie istnieje."
+            )
+
+    if db_article.author_id != user_id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Nie masz uprawnień do wyświetlania tego artykulu do edycji."
+        )
+
+    return db_article
+
+@router.get('/for-edit/id/{article_id}', status_code=status.HTTP_200_OK)
+async def get_for_edit_article_by_id(article_id: int, user_id: Annotated[int, Depends(authenticate)], db: Annotated[Session, Depends(get_db)]) -> schemas.ResponseUpdateArticle:
+    db_article = service.get_article_by_id(db=db, article_id=article_id)
+    if db_article.author_id != user_id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Nie masz uprawnień do wyświetlania tego artykulu do edycji"
+        )
+        
+    return db_article
+
+@router.patch(  
+    '/id/{article_id}',
+    status_code=status.HTTP_200_OK
+)
+async def update_partial_article_by_id(
+    article_id: int,
+    user_id: Annotated[int, Depends(authenticate)],
+    db: Annotated[Session, Depends(get_db)],
+    images_for_content_type_image: list[UploadFile] = None,
+    title_image: Union[Annotated[UploadFile, File(...)]] = None,
+    article: Annotated[Union[schemas.CreateArticle, str], Form(...)] = None
+
+
+    ) -> schemas.ResponseArticleDetail:
+    try:
+        if title_image is None and article is None:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail='Brak danych do aktualizacji.'
+            )
+        db_article = service.get_article_by_id(db=db, article_id=article_id)
+        
+        if not db_article:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Artykuł nie istnieje."
+                )
+        
+        if db_article.author_id != user_id:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Nie masz uprawnień do edytowania tego artykułu."
+            )
+            
+        article = json.loads(article)
+        
+        title_image_url = None
+        if title_image is not None:
+            check_file_if_image(title_image)
+
+            title_image.filename = f'{uuid4()}.{title_image.filename.split(".")[-1]}'
+            contents = await title_image.read()
+            with open(f"{IMAGE_DIR}{title_image.filename}", "wb") as f:
+                f.write(contents)
+            title_image_url = f'{IMAGE_URL}{title_image.filename}'
+        
+        image_content_elements = [ce for ce in article['content_elements'] if ce['content_type'] == 'image' and ce['content'] == '']
+        len_image_content_elements = len([ce for ce in article['content_elements'] if ce['content_type'] == 'image' and
+                                          ce['content'] == ''])
+
+        if images_for_content_type_image: 
+            if len(images_for_content_type_image) != len_image_content_elements:
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail='Number of images does not match number of new content elements.'
+                    )
+            for image, content_element in zip(images_for_content_type_image, image_content_elements):
+                if content_element['content'] == '':
+                    check_file_if_image(image)
+                    image.filename = f'{uuid4()}.{image.filename.split(".")[-1]}'
+                    contents = await image.read()
+                    with open(f"{IMAGE_DIR}{image.filename}", "wb") as f:
+                        f.write(contents)
+                    content_element['content'] = f'{IP_ADDRESS}{IMAGE_URL}{image.filename}'
+        else:
+            if len(image_content_elements) != 0:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail='Number of images does not match number of content elements.'
+                    )
+
+        
+        db_article = service.partial_update_article(db=db, db_article=db_article, article=article, title_image=title_image_url)
+        return db_article
+    
+    except json.JSONDecodeError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f'Invalid JSON format: {str(e)}'
+        )
+    except ValidationError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f'Validation error: {str(e)}'
+        )
+    except HTTPException as e:
+        raise e
 
 @router.get('/all', status_code=status.HTTP_200_OK)
 async def get_articles(sort_order: Union[None, Literal['asc', 'desc']] = None, db: Session = Depends(get_db)) -> Page[schemas.ResponseArticle]:
@@ -123,7 +274,6 @@ async def search_article_by_title_and_summary(
     db: Session = Depends(get_db)
 ) -> Page[schemas.ResponseArticle]:
     
-    # Perform the search with the filters
     db_articles = service.search_articles(
         db=db,
         value=value,
@@ -140,8 +290,6 @@ async def search_article_by_title_and_summary(
         sort_by=sort_by
     )
     
-    # Paginate the result
-    print(db_articles)
     return paginate(db_articles)
 
 @router.get('/detail/id/{article_id}', status_code=status.HTTP_200_OK)
