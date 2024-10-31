@@ -14,8 +14,8 @@ class User(Base):
     sex = Column(String(31), unique=False)
     avatar = Column(String, unique=False, default="media/uploads/user/default.jpg")
     background_image = Column(String, unique=False, default="media/uploads/user/default_bg_img.png")
-    description = Column(String(1023), unique=False, default="")
-    short_description = Column(String(255), unique=False, default="")
+    description = Column(String(1023), unique=False, default="", nullable=False)
+    short_description = Column(String(255), unique=False, default="", nullable=False)
     is_active = Column(Boolean, unique=False, default=False)
     follower_count = Column(Integer, unique=False, default=0)
     following_count = Column(Integer, unique=False, default=0)
@@ -30,17 +30,35 @@ class User(Base):
     wish_list = relationship('WishList', back_populates='user', cascade='all, delete-orphan')
     purchased_articles = relationship('ArticlePurchase', back_populates='user', cascade='all, delete-orphan')
     skills = relationship('SkillList', back_populates='user', cascade='all, delete-orphan')
-
     support_issues = relationship('Issue', back_populates='reported_by', cascade='all, delete-orphan')
-    
     collections = relationship('Collection', back_populates='owner', cascade='all, delete-orphan')
     
+    @property 
+    def skill_list(self):
+        from .service import get_user_skills
+        from app.dependencies import SessionLocal
+        db = SessionLocal()
+        try:
+            return get_user_skills(db=db, user_id=self.id)
+        finally:
+            db.close()
+         
+    @property
+    def avg_rating_from_articles(self):
+        sum_rating = sum(article.rating for article in self.articles if article.rating is not None)
+        count = sum(1 for article in self.articles if article.rating is not None)
+        return round(sum_rating / count if count > 0 else 0.0, 2)
+
     @property
     def avatar_url(self):
+        if self.avatar is None:
+            self.avatar = 'media/uploads/user/default.jpg'
         return IP_ADDRESS + self.avatar
     
     @property
     def background_image_url(self):
+        if self.background_image is None:
+            self.background_image = "media/uploads/user/default_bg_img.png"
         return IP_ADDRESS + self.background_image
     
     def __str__(self):

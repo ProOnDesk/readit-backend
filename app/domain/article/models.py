@@ -1,6 +1,7 @@
 from fastapi import Depends
 from sqlalchemy import Boolean, Column, Float, ForeignKey, Integer, String, Text, Table, event, UniqueConstraint, func, CheckConstraint
 from sqlalchemy.orm import relationship, Session
+from sqlalchemy.orm.attributes import get_history
 from sqlalchemy.types import DateTime
 from ..model_base import Base
 import datetime
@@ -114,6 +115,17 @@ def decrement_article_count(mapper, connection, target):
     
     session.commit()   
     
+@event.listens_for(Article, 'before_insert')
+@event.listens_for(Article, 'before_update')
+def set_unique_slug(mapper, connection, target):
+    title_history = get_history(target, 'title')
+    if target.id is None or get_history(target, 'title').non_added()[0] != target.title:
+        base_slug = generate_slug(target.title)
+        session = Session.object_session(target)
+        if session:
+
+            target.slug = unique_slug(session, base_slug, Article)
+            
 class ArticlePurchase(Base):
     __tablename__ = "article_purchase"
 
@@ -165,14 +177,6 @@ class WishList(Base):
 
     user = relationship('User', back_populates='wish_list')
     article = relationship('Article', back_populates='wish_list')
-    
-@event.listens_for(Article, 'before_insert')
-def set_unique_slug(mapper, connection, target):
-    if target.title:
-        base_slug = generate_slug(target.title)
-        session = Session.object_session(target)
-        if session:
-            target.slug = unique_slug(session, base_slug, Article)
             
 @event.listens_for(ArticleComment, 'after_insert')
 @event.listens_for(ArticleComment, 'after_update')

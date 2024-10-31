@@ -1,6 +1,6 @@
 from typing import Annotated
 from fastapi import APIRouter, Depends, Response, status
-from ..dependencies import validate_credentials, Tokens, EncodedTokens, retrieve_refresh_token, authenticate, create_token, RefreshToken
+from ..dependencies import validate_credentials, Tokens, EncodedTokens, retrieve_refresh_token, authenticate, create_token, RefreshToken, Responses, CreateAuthResponses, CreateExampleResponse, Example, DefaultResponseModel
 from app.config import ACCESS_TOKEN_EXPIRE_TIME, REFRESH_TOKEN_EXPIRE_TIME
 import datetime
 
@@ -10,7 +10,13 @@ router = APIRouter(
     responses={404: {'description': 'Not found'}, 500: {'description': 'Internal Server Error'}},
 )
 
-@router.post("/token", status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/token", 
+    status_code=status.HTTP_201_CREATED,
+    responses=Responses(
+        CreateAuthResponses()
+    )
+)
 async def login_for_access_token(
     response: Response,
     tokens: EncodedTokens = Depends(validate_credentials)
@@ -23,7 +29,13 @@ async def login_for_access_token(
         "message": "Authenticated"
     }
 
-@router.post("/refresh-token", status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/refresh-token", 
+    status_code=status.HTTP_201_CREATED,
+    responses=Responses(
+        CreateAuthResponses()
+    )
+)
 async def refresh_for_access_token(
     response: Response,
     refresh_token: RefreshToken = Depends(retrieve_refresh_token)
@@ -46,7 +58,24 @@ async def refresh_for_access_token(
     return {
         "message": "Refreshed"
     }
-@router.get("/logout")
+@router.get(\
+    "/logout",
+    responses=Responses(
+        CreateExampleResponse(
+            code=200,
+            description="",
+            content_type="application/json",
+            examples=[
+                Example(
+                    name="Logged out",
+                    summary="Logged out",
+                    description="Logged out succesfully",
+                    value=DefaultResponseModel(message="Logged out")
+                )
+            ]
+        )
+    )
+)
 async def logout(
     response: Response,
 ):
@@ -55,7 +84,7 @@ async def logout(
     response.delete_cookie(key="refresh_token")
 
     return {
-        "message": "Logout"
+        "message": "Logged out"
     }
     
 ### Returns body with real tokens
