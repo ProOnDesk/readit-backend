@@ -24,7 +24,7 @@ router = APIRouter(
 
 
 
-@router.post("/sample-data/")
+@router.post("/sample-data")
 def seed_data(
     user_amount: int = Query(10, ge=1, le=100, description="Must be between 1 and 100"),
     article_amount: int = Query(20, ge=1, le=100, description="Must be between 1 and 100"),
@@ -125,7 +125,7 @@ def seed_data(
         
         
     
-@router.delete("/clear-database/")
+@router.delete("/clear-database")
 def clear_data(db: Session = Depends(get_db)):
     try:
         metadata = MetaData()
@@ -152,7 +152,7 @@ def clear_data(db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail=str(e))
     
 
-@router.delete("/drop-database-tables/")
+@router.delete("/drop-database-tables")
 def drop_all_tables(db: Session = Depends(get_db)):
     try:
         # Reflect the metadata from the database

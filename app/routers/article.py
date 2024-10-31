@@ -569,7 +569,7 @@ def get_collections_for_me(user_id: Annotated[int, Depends(authenticate)], db: A
     
     return paginate(db_collections)
 
-@router.get('/collections/user{user_id}', status_code=status.HTTP_200_OK)
+@router.get('/collections/user/{user_id}', status_code=status.HTTP_200_OK)
 def get_collections_by_user_id(user_id: int, db: Annotated[Session, Depends(get_db)]) -> Page[schemas.Collection]:
     db_collections = service.get_collections_by_user_id(db=db, user_id=user_id)
     return paginate(db_collections)
