@@ -1,7 +1,8 @@
 from sqladmin import Admin, ModelView
 from app.database import engine, SessionLocal
-from app.domain.article.views import TagView, ArticleView, ArticleCommentView, WishListView, ArticleContentElementView
+from app.domain.article.views import TagView, ArticleView, ArticleCommentView, WishListView, ArticleContentElementView, CollectionView, CollectionArticleView
 from app.domain.user.views import UserView, FollowerView, SkillView, SkillListView
+from app.domain.support.views import IssueView
 from sqladmin.authentication import AuthenticationBackend
 from starlette.requests import Request
 import os
@@ -39,5 +40,8 @@ def create_admin(app):
     admin.add_view(ArticleContentElementView)
     admin.add_view(SkillView)
     admin.add_view(SkillListView)
+    admin.add_view(CollectionView)
+    admin.add_view(CollectionArticleView)
+    admin.add_view(IssueView)
     
     return admin

@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field, root_validator, conint
+from pydantic import BaseModel, Field, root_validator, conint, Field
 from datetime import datetime
 from typing import Annotated, Literal, Union, Optional
 
@@ -73,12 +73,15 @@ class ResponseArticle(BaseArticle):
     rating: float
     rating_count: int
 
+class ResponseArticleWishList(ResponseArticle):
+    is_bought: bool | None = None
+
 class ResponseArticleDetail(ResponseArticle):
     content_elements: list[ResponseArticleContentElement]
 
 # WISH LIST
 class BaseWishList(BaseModel):
-    article: ResponseArticle
+    article: ResponseArticleWishList
     user_id: int
 
 class ResponseWishList(BaseWishList):
@@ -92,3 +95,32 @@ class PurchasedArticle(BaseModel):
     
 class Slug(BaseModel):
     slug: str
+
+class CreateCollection(BaseModel):
+    title: str
+    discount_percentage: Annotated[int , Field(le=0, ge=100)]
+    articles_id: list[int]
+    short_description: Annotated[str, Field(max_length=500)]
+    
+class UpdateCollection(BaseModel):
+    title: Union[None, str] = None
+    discount_percentage: Union[None, Annotated[int , Field(le=0, ge=100)]] = None
+    articles_id: Union[None, list[int]] = None
+    short_description: Union[None, Annotated[str, Field(max_length=500)]] = None
+    
+class Collection(BaseModel):
+    id: int
+    owner_id: int
+    title: str
+    short_description: str
+    discount_percentage: int
+    collection_image_url: str
+    price: float
+    created_at: datetime
+    updated_at: datetime
+    articles_count: int
+    rating: float = 0.0
+    articles_id: list[int]
+    
+class CollectionDetail(Collection):
+    articles: list[ResponseArticleWishList]

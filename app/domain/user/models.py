@@ -30,8 +30,8 @@ class User(Base):
     wish_list = relationship('WishList', back_populates='user', cascade='all, delete-orphan')
     purchased_articles = relationship('ArticlePurchase', back_populates='user', cascade='all, delete-orphan')
     skills = relationship('SkillList', back_populates='user', cascade='all, delete-orphan')
-    
     support_issues = relationship('Issue', back_populates='reported_by', cascade='all, delete-orphan')
+    collections = relationship('Collection', back_populates='owner', cascade='all, delete-orphan')
     
     @property 
     def skill_list(self):
@@ -48,7 +48,7 @@ class User(Base):
         sum_rating = sum(article.rating for article in self.articles if article.rating is not None)
         count = sum(1 for article in self.articles if article.rating is not None)
         return round(sum_rating / count if count > 0 else 0.0, 2)
-    
+
     @property
     def avatar_url(self):
         if self.avatar is None:

@@ -1,7 +1,7 @@
-from fastapi import APIRouter, Depends, HTTPException, status, File, UploadFile, Form, Query
+from fastapi import APIRouter, Depends, HTTPException, status, File, UploadFile, Form, Query, Cookie
 from sqlalchemy.orm import Session
 from app.domain.article import schemas, service, models
-from app.dependencies import get_db, authenticate, Tokens, DefaultResponseModel
+from app.dependencies import get_db, authenticate, Tokens, DefaultResponseModel, get_user_id_by_access_token
 from typing import Annotated, Union, Literal, Optional
 from fastapi_pagination import Page, paginate
 from app.config import IMAGE_DIR, IP_ADDRESS, IMAGE_URL
@@ -76,9 +76,7 @@ async def create_article(
                     detail='Number of images does not match number of content elements.'
                     )
 
-            
         db_article = service.create_article(db=db, article=article, user_id=user_id, title_image=title_image_url)
-
         
         return db_article
     
@@ -424,6 +422,9 @@ async def change_article_is_in_wish_list_or_not(article_id: int, user_id: Annota
 @router.get('/wish-list/all/me', status_code=status.HTTP_200_OK)
 async def get_articles_from_wish_list(user_id: Annotated[int, Depends(authenticate)], sort_order: Union[None, Literal['asc', 'desc']] = None, db: Session = Depends(get_db)) ->Page[schemas.ResponseWishList]:
     db_wish_list = service.get_wish_list_by_user_id(db=db, user_id=user_id, sort_order=sort_order)
+    for wish in db_wish_list:
+        wish.article.is_bought = service.has_user_purchased_article(db=db, user_id=user_id, article_id=wish.article.id)
+        
     return paginate(db_wish_list)
 
 @router.delete('/wish-list/delete/{article_id}', status_code=status.HTTP_200_OK)
@@ -503,3 +504,260 @@ async def get_bought_articles(user_id: Annotated[int, Depends(authenticate)], db
 @router.get('/is-bought/{article_id}')
 def is_article_bought(article_id: int, user_id: Annotated[int, Depends(authenticate)], db: Session = Depends(get_db)):
     return service.has_user_purchased_article(db=db, user_id=user_id, article_id=article_id)
+
+
+@router.post('/collection', status_code=status.HTTP_201_CREATED)
+async def create_collection(
+    collection: Annotated[Union[schemas.CreateCollection, str], Form(...)],
+    collection_image: Annotated[UploadFile, File(...)],
+    user_id: Annotated[int, Depends(authenticate)],
+    db: Annotated[Session, Depends(get_db)],
+) -> schemas.Collection:
+    try:
+        collection = json.loads(collection)
+        check_file_if_image(collection_image)
+        
+        collection_image.filename = f'{uuid4()}.{collection_image.filename.split(".")[-1]}'
+        contents = await collection_image.read()
+        with open(f"{IMAGE_DIR}{collection_image.filename}", "wb") as f:
+            f.write(contents)
+        collection_image_url = f'{IMAGE_URL}{collection_image.filename}'
+        collection['collection_image'] = collection_image_url
+        articles = []
+    
+        for article_id in collection.pop('articles_id'):
+            article = service.get_article_by_id(db=db, article_id=article_id)
+            
+            if article is None:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=f"Artykuł o id {article_id} nie został znaleziony."
+                )
+            if article.author_id != user_id:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail=f"Nie możesz dodać do swojej paczki artykułu, który nie jest Twojego autorstwa."
+                )
+                
+            articles.append(article)
+        
+        db_collection = service.create_collection(db=db, collection=collection, articles=articles, user_id=user_id)
+        
+        return db_collection
+    
+    except json.JSONDecodeError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f'Invalid JSON format: {str(e)}'
+        )
+    except ValidationError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f'Validation error: {str(e)}'
+        )
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"An unexpected error occurred: {str(e)}"
+        )
+        
+@router.get('/collections/me', status_code=status.HTTP_200_OK)
+def get_collections_for_me(user_id: Annotated[int, Depends(authenticate)], db: Annotated[Session, Depends(get_db)]) -> Page[schemas.Collection]:
+    db_collections = service.get_collections_by_user_id(db=db, user_id=user_id)
+    
+    return paginate(db_collections)
+
+@router.get('/collections/user/{user_id}', status_code=status.HTTP_200_OK)
+def get_collections_by_user_id(user_id: int, db: Annotated[Session, Depends(get_db)]) -> Page[schemas.Collection]:
+    db_collections = service.get_collections_by_user_id(db=db, user_id=user_id)
+    return paginate(db_collections)
+
+@router.get('/collections/article/{article_id}', status_code=status.HTTP_200_OK)
+def get_collections_by_article_id(article_id: int, db: Annotated[Session, Depends(get_db)]) -> Page[schemas.Collection]:
+    db_collections = service.get_collections_by_article_id(db=db, article_id=article_id)
+    return paginate(db_collections)
+
+@router.get('/collections/user/logged/{user_id}', status_code=status.HTTP_200_OK)
+def get_collections_by_user_id(user_id: int, authenticated_user_id: Annotated[int, Depends(authenticate)], db: Annotated[Session, Depends(get_db)]) -> Page[schemas.Collection]:
+    db_collections = service.get_collections_by_user_id(db=db, user_id=user_id)
+    
+    for collection in db_collections:
+        total_price = 0
+        
+        for article in collection.articles:
+            if not service.has_user_purchased_article(db=db, user_id=authenticated_user_id, article_id=article.id):
+                total_price += article.price
+        
+        discount = (collection.discount_percentage / 100) * total_price
+        new_price = total_price - discount
+        
+        collection.price = new_price
+    
+    return paginate(db_collections)
+
+@router.get('/collections/article/logged/{article_id}', status_code=status.HTTP_200_OK)
+def get_collections_by_article_id(article_id: int, authenticated_user_id: Annotated[int, Depends(authenticate)], db: Annotated[Session, Depends(get_db)]) -> Page[schemas.Collection]:
+    db_collections = service.get_collections_by_user_id(db=db, user_id=user_id)
+    
+    for collection in db_collections:
+        total_price = 0
+        
+        for article in collection.articles:
+            if not service.has_user_purchased_article(db=db, user_id=authenticated_user_id, article_id=article.id):
+                total_price += article.price
+        
+        discount = (collection.discount_percentage / 100) * total_price
+        new_price = total_price - discount
+        
+        collection.price = new_price
+    
+    return paginate(db_collections)
+
+@router.patch('/collection/{collection_id}', status_code=status.HTTP_200_OK)
+async def edit_partial_collection_by_id(
+    collection_id: int,
+    user_id: Annotated[int, Depends(authenticate)],
+    db: Annotated[Session, Depends(get_db)],
+    collection: Annotated[Union[schemas.UpdateCollection, str], Form(...)] = None,
+    collection_image: Annotated[UploadFile, File(...)] = None
+    ) -> schemas.Collection:
+    db_collection = service.get_collection_by_id(db=db, collection_id=collection_id)
+    
+    if collection is None and collection_image is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Brak danych do aktualizacji."
+        )
+        
+    if not db_collection:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Nie znaleziono paczki."
+        )
+        
+    if db_collection.owner_id != user_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Nie masz uprawnień do edytowania tej paczki."
+        )
+    if collection is not None:
+        collection = json.loads(collection)
+    else:
+        collection = {}
+                
+    if collection_image:
+        check_file_if_image(collection_image)
+        
+        collection_image.filename = f'{uuid4()}.{collection_image.filename.split(".")[-1]}'
+        
+        contents = await collection_image.read()
+        with open(f"{IMAGE_DIR}{collection_image.filename}", "wb") as f:
+            f.write(contents)
+            
+        collection_image_url = f'{IMAGE_URL}{collection_image.filename}'
+        collection['collection_image'] = collection_image_url
+        
+        articles_id = collection.pop('articles_id', None)
+        print()
+        if isinstance(articles_id, list):
+            articles = []
+
+            for article_id in articles_id:
+                article = service.get_article_by_id(db=db, article_id=article_id)
+                
+                if article is None:
+                    raise HTTPException(
+                        status_code=status.HTTP_404_NOT_FOUND,
+                        detail=f"Artykuł o id {article_id} nie został znaleziony."
+                    )
+                if article.author_id != user_id:
+                    raise HTTPException(
+                        status_code=status.HTTP_403_FORBIDDEN,
+                        detail=f"Nie możesz dodać do swojej paczki artykułu, który nie jest Twojego autorstwa."
+                    )
+                    
+                articles.append(article)
+            collection['articles'] = articles
+        
+    db_collection = service.partial_update_collection(db=db, db_collection=db_collection, update_collection=collection)
+    return db_collection
+
+@router.get('/collection/detail/{collection_id}')
+def get_collection_detail_by_id(collection_id: int, db: Annotated[Session, Depends(get_db)], access_token: Union[str, None] = Cookie(None)) -> schemas.CollectionDetail:
+    db_collection = service.get_collection_by_id(db=db, collection_id=collection_id)
+    
+    if not db_collection:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Nie znaleziono paczki."
+        )
+        
+    if access_token:
+        user_id = get_user_id_by_access_token(access_token)
+        
+        for article in db_collection.articles:
+            article.is_bought = service.has_user_purchased_article(db=db, user_id=user_id, article_id=article.id)
+            total_price = 0
+        
+            if not service.has_user_purchased_article(db=db, user_id=user_id, article_id=article.id):
+                total_price += article.price
+            discount = (db_collection.discount_percentage / 100) * total_price
+            new_price = total_price - discount
+        
+        db_collection.price = new_price
+            
+    return db_collection
+
+@router.delete('/collection/{collection_id}')
+def delete_collection_by_id(collection_id: int, user_id: Annotated[int, Depends(authenticate)], db: Annotated[Session, Depends(get_db)]) -> bool:
+    db_collection = service.get_collection_by_id(db=db, collection_id=collection_id)
+    
+    if not db_collection:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Nie znaleziono paczki."
+        )
+        
+    if db_collection.owner_id != user_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Nie masz uprawnień do usuwania tej paczki."
+        )
+        
+    return service.delete_collection(db=db, db_collection=db_collection)
+
+@router.delete('/collection/all/me')
+def delete_user_all_collections(user_id: Annotated[int , Depends(authenticate)], db: Annotated[Session, Depends(get_db)]) -> bool:
+    db_collections = service.get_collections_by_user_id(db=db, user_id=user_id)
+    
+    if not db_collections:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Nie znaleziono paczek użytkownika do usunięcia."
+        )
+
+    return all([service.delete_collection(db=db, db_collection=db_collection) for db_collection in db_collections])
+
+@router.post('/collection/buy/{collection_id}')
+def buy_collection_by_id(collection_id: int, user_id: Annotated[int, Depends(authenticate)], db: Annotated[Session, Depends(get_db)]):
+    db_collection = service.get_collection_by_id(db=db, collection_id=collection_id)
+    
+    if db_collection is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Nie znaleziono paczki."
+        )
+        
+    if db_collection.owner_id == user_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Nie możesz kupić własnej paczki."
+        )
+    for article in db_collection.articles:
+        if service.has_user_purchased_article(db=db, user_id=user_id, article_id=article.id):
+            continue
+        service.add_purchased_article(db=db, user_id=user_id, article_id=article.id)
+    
+    return {"detail": "Paczka z artykułami została pomyślnie zakupiona."} 

@@ -418,6 +418,10 @@ def retrieve_tokens(
 
     return Tokens(access_token=access_token, refresh_token=refresh_token)
 
+def get_user_id_by_access_token(access_token: str) -> int:
+    decoded_access_token = jwt.decode(access_token, SECRET_KEY, algorithms=[ENCRYPTION_ALGORITHM])
+    return decoded_access_token.get("user_id")
+
 def retrieve_access_token(
     token: Annotated[Tokens, Depends(oauth2_scheme)] 
 ) -> AccessToken:
@@ -502,7 +506,6 @@ def validate_credentials(
     # return {"access_token": access_token, "refresh_token": refresh_token}
     return EncodedTokens(access_token=access_token, refresh_token=refresh_token)
 
-
 def CreateAuthResponses():
     return CreateExampleResponse(
         code=400,
@@ -513,7 +516,6 @@ def CreateAuthResponses():
             Example(name="Inactive account", summary="Inactive account", description="Account isn't activated", value=DefaultErrorModel(detail="Zweryfikuj swoje konto")),
         ]
     )
-
 
 def authenticate(
     access_token: Annotated[AccessToken, Depends(retrieve_access_token)],
@@ -543,6 +545,7 @@ def get_or_create(session, model, **kwargs):
         session.add(instance)
         session.commit()
         return instance
+    
 async def send_email(
     subject: str, email_to: str, body: dict[str, str], template: str
 ) -> None:
@@ -560,4 +563,3 @@ async def send_email(
     
     fm = FastMail(conf)
     await fm.send_message(message)
-

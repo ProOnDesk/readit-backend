@@ -1,5 +1,5 @@
 from fastapi import Depends
-from sqlalchemy import Boolean, Column, Float, ForeignKey, Integer, String, Text, Table, event, UniqueConstraint, func
+from sqlalchemy import Boolean, Column, Float, ForeignKey, Integer, String, Text, Table, event, UniqueConstraint, func, CheckConstraint
 from sqlalchemy.orm import relationship, Session
 from sqlalchemy.orm.attributes import get_history
 from sqlalchemy.types import DateTime
@@ -71,14 +71,25 @@ class Article(Base):
     wish_list = relationship('WishList', back_populates='article', cascade='all, delete-orphan')
     content_elements = relationship('ArticleContentElement', back_populates='article', cascade='all, delete-orphan')
     purchased_by = relationship('ArticlePurchase', back_populates='article', cascade='all, delete-orphan')
+    collections = relationship('Collection', secondary='collection_articles', back_populates='articles')
 
- 
+        
     def __repr__(self):
         return f"<Article(id={self.id}, title={self.title}, author={self.author}, created_at={self.created_at})>"
     
     @property
     def title_image_url(self):
         return IP_ADDRESS + self.title_image
+    
+    @property
+    def is_bought(self):
+        if self._is_bought is None:
+            raise ValueError("The '_is_bought' attribute is not set.")
+        return self._is_bought
+        
+    @is_bought.setter
+    def is_bought(self, value):
+        self._is_bought = value
     
 @event.listens_for(Article, 'after_insert')
 def increment_article_count(mapper, connection, target):
@@ -183,3 +194,58 @@ def update_article_rating_on_comment_change(mapper, connection, target):
     }, synchronize_session=False)
     
     session.commit()
+    
+class Collection(Base):
+    __tablename__ = "collections"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    owner_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    title = Column(String(255), nullable=False)
+    short_description = Column(String(500))
+    discount_percentage = Column(Integer, CheckConstraint('discount_percentage >= 0 AND discount_percentage <= 100'), nullable=False, default=0)
+    collection_image = Column(String(255), nullable=False)
+    
+    created_at = Column(DateTime, server_default=func.timezone('UTC', func.now()))
+    updated_at = Column(DateTime, server_default=func.timezone('UTC', func.now()), onupdate=func.timezone('UTC', func.now()))
+    
+    owner = relationship('User', back_populates='collections')
+    articles = relationship('Article', secondary='collection_articles', back_populates='collections')
+    _price = None
+    @property
+    def articles_id(self) -> list[int]:
+        return [article.id for article in self.articles]
+    
+    @property
+    def rating(self) -> float:
+        articles = [article.rating for article in self.articles if article.rating != 0]
+        sum_rating = sum(articles)
+        counter = len(articles)
+        return round(sum_rating / counter, 2) if counter > 0 else 0.0
+    
+    @property
+    def articles_count(self) -> int:
+        return len(self.articles) if self.articles else 0
+    
+    @property
+    def price(self) -> float:
+        if self._price is not None:
+            return self._price
+        
+        total_price = sum(article.price for article in self.articles)
+        discount = (self.discount_percentage / 100) * total_price
+        return round(total_price - discount, 2)
+    
+    @price.setter
+    def price(self, value: float):
+        self._price = value
+    
+    @property
+    def collection_image_url(self):
+        return IP_ADDRESS + self.collection_image
+    
+class CollectionArticle(Base):
+    __tablename__ = "collection_articles"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    collection_id = Column(Integer, ForeignKey('collections.id', ondelete='CASCADE'), nullable=False)
+    article_id = Column(Integer, ForeignKey('articles.id', ondelete='CASCADE'), nullable=False)
+    
