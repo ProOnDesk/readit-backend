@@ -1,7 +1,7 @@
-from fastapi import APIRouter, Depends, HTTPException, status, File, UploadFile, Form, Query
+from fastapi import APIRouter, Depends, HTTPException, status, File, UploadFile, Form, Query, Cookie
 from sqlalchemy.orm import Session
 from app.domain.article import schemas, service, models
-from app.dependencies import get_db, authenticate, Tokens, DefaultResponseModel
+from app.dependencies import get_db, authenticate, Tokens, DefaultResponseModel, get_user_id_by_access_token
 from typing import Annotated, Union, Literal, Optional
 from fastapi_pagination import Page, paginate
 from app.config import IMAGE_DIR, IP_ADDRESS, IMAGE_URL
@@ -685,7 +685,7 @@ async def edit_partial_collection_by_id(
     return db_collection
 
 @router.get('/collection/detail/{collection_id}')
-def get_collection_detail_by_id(collection_id: int, db: Annotated[Session, Depends(get_db)]) -> schemas.CollectionDetail:
+def get_collection_detail_by_id(collection_id: int, db: Annotated[Session, Depends(get_db)], access_token: Union[str, None] = Cookie(None)) -> schemas.CollectionDetail:
     db_collection = service.get_collection_by_id(db=db, collection_id=collection_id)
     
     if not db_collection:
@@ -694,6 +694,20 @@ def get_collection_detail_by_id(collection_id: int, db: Annotated[Session, Depen
             detail="Nie znaleziono paczki."
         )
         
+    if access_token:
+        user_id = get_user_id_by_access_token(access_token)
+        
+        for article in db_collection.articles:
+            article.is_bought = service.has_user_purchased_article(db=db, user_id=user_id, article_id=article.id)
+            total_price = 0
+        
+            if not service.has_user_purchased_article(db=db, user_id=user_id, article_id=article.id):
+                total_price += article.price
+            discount = (db_collection.discount_percentage / 100) * total_price
+            new_price = total_price - discount
+        
+        db_collection.price = new_price
+            
     return db_collection
 
 @router.delete('/collection/{collection_id}')

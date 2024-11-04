@@ -74,7 +74,7 @@ class ResponseArticle(BaseArticle):
     rating_count: int
 
 class ResponseArticleWishList(ResponseArticle):
-    is_bought: bool
+    is_bought: bool | None = None
 
 class ResponseArticleDetail(ResponseArticle):
     content_elements: list[ResponseArticleContentElement]
@@ -123,4 +123,4 @@ class Collection(BaseModel):
     articles_id: list[int]
     
 class CollectionDetail(Collection):
-    articles: list[ResponseArticle]
+    articles: list[ResponseArticleWishList]
