@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field, root_validator, conint, Field
+from pydantic import BaseModel, Field, root_validator, conint, conset, Field
 from datetime import datetime
 from typing import Annotated, Literal, Union, Optional
 
@@ -30,8 +30,8 @@ class BaseArticle(BaseModel):
     title: str
     summary: str
     tags: Optional[list[BaseTag]] = None
-    is_free: bool
-    price: float
+    is_free: bool = True
+    price: float = 0.0
     
 class CreateArticle(BaseArticle):
     content_elements: list[BaseArticleContentElement]
@@ -98,14 +98,14 @@ class Slug(BaseModel):
 
 class CreateCollection(BaseModel):
     title: str
-    discount_percentage: Annotated[int , Field(le=0, ge=100)]
-    articles_id: list[int]
+    discount_percentage: Annotated[int , Field(le=100, ge=0)]
+    articles_id: conset(int, min_length=2)
     short_description: Annotated[str, Field(max_length=500)]
     
 class UpdateCollection(BaseModel):
     title: Union[None, str] = None
-    discount_percentage: Union[None, Annotated[int , Field(le=0, ge=100)]] = None
-    articles_id: Union[None, list[int]] = None
+    discount_percentage: Union[None, Annotated[int , Field(le=100, ge=0)]] = None
+    articles_id: Union[None, conset(int, min_length=2)] = None
     short_description: Union[None, Annotated[str, Field(max_length=500)]] = None
     
 class Collection(BaseModel):

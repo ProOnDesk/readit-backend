@@ -84,7 +84,6 @@ def delete_follow(db: Session, follow_id: int):
 
 def get_followers_by_user_id(db: Session, user_id: int):
     db_user = db.query(models.User).filter(models.User.id == user_id).first()
-    print(db_user.followers)
     if db_user:
         return [follower.follower for follower in db_user.followers]
     

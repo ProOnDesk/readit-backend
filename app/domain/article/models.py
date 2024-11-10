@@ -248,4 +248,16 @@ class CollectionArticle(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     collection_id = Column(Integer, ForeignKey('collections.id', ondelete='CASCADE'), nullable=False)
     article_id = Column(Integer, ForeignKey('articles.id', ondelete='CASCADE'), nullable=False)
+
+@event.listens_for(Article, 'after_delete')
+def check_collection_article_count(mapper, connection, target):
+    collection_ids = [collection.id for collection in target.collections]
+    
+    with Session(bind=connection) as session:
+        for collection_id in collection_ids:
+            collection = session.get(Collection, collection_id)
+            
+            if collection and collection.articles_count < 2:
+                session.delete(collection)
+                session.commit()
     

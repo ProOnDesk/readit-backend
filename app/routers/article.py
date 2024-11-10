@@ -45,6 +45,8 @@ async def create_article(
 ) -> schemas.ResponseArticleDetail:
     try:
         article = json.loads(article)
+        # Validate
+        schemas.CreateArticle(**article)
         
         check_file_if_image(title_image)
         
@@ -196,6 +198,8 @@ async def update_partial_article_by_id(
             )
             
         article = json.loads(article)
+        # validate
+        schemas.CreateArticle(**article)
         
         title_image_url = None
         if title_image is not None:
@@ -340,10 +344,12 @@ async def get_article_by_id(article_id: int, db: Session = Depends(get_db)) -> s
 @router.post('/slug', status_code=status.HTTP_200_OK)
 async def get_article_by_slug_title(slug: schemas.Slug, db: Session = Depends(get_db)) -> schemas.ResponseArticle:
     db_article = service.get_article_by_slug(db=db, slug_title=slug.slug)
+    
     if db_article is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Artykuł nie istnieje.")
-    print(db_article)
+    
     db_article.view_count += 1
+    
     db.add(db_article)
     db.commit()
     db.refresh(db_article)
@@ -364,7 +370,12 @@ async def delete_article_by_id(article_id: int, user_id: Annotated[int, Depends(
 
 @router.get('/comment/all/{article_id}', status_code=status.HTTP_200_OK)
 async def get_comments_by_article_id(article_id: int, sort_order: Union[None, Literal['asc', 'desc']] = None, db: Session = Depends(get_db)) -> Page[schemas.ResponseCommentArticle]:
+    db_article = service.get_article_by_id(db=db, article_id=article_id)
+    if db_article is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Artykuł nie istnieje")
+    
     db_comments = service.get_article_comments_by_article_id(db=db, article_id=article_id, sort_order=sort_order)
+
     return paginate(db_comments)
 
 @router.post('/comment/{article_id}', status_code=status.HTTP_201_CREATED)
@@ -515,6 +526,9 @@ async def create_collection(
 ) -> schemas.Collection:
     try:
         collection = json.loads(collection)
+        # Validate 
+        schemas.CreateCollection(**collection)
+        
         check_file_if_image(collection_image)
         
         collection_image.filename = f'{uuid4()}.{collection_image.filename.split(".")[-1]}'
@@ -644,6 +658,8 @@ async def edit_partial_collection_by_id(
         )
     if collection is not None:
         collection = json.loads(collection)
+        # Validate
+        schemas.UpdateCollection(**collection)
     else:
         collection = {}
                 
