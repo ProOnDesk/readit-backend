@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field, root_validator, conint
+from pydantic import BaseModel, Field, root_validator, conint, conset, Field
 from datetime import datetime
 from typing import Annotated, Literal, Union, Optional
 
@@ -19,7 +19,7 @@ class ResponseTag(BaseTag):
 # ARTICLE CONTENT ELELMENT
 
 class BaseArticleContentElement(BaseModel):
-    content_type: Literal['title', 'image', 'text']
+    content_type: Literal['title', 'image', 'text', 'listing']
     content: str
     
 class ResponseArticleContentElement(BaseArticleContentElement):
@@ -30,13 +30,24 @@ class BaseArticle(BaseModel):
     title: str
     summary: str
     tags: Optional[list[BaseTag]] = None
-    is_free: bool
-    price: float
+    is_free: bool = True
+    price: float = 0.0
     
 class CreateArticle(BaseArticle):
     content_elements: list[BaseArticleContentElement]
+
+class UpdatePartialArticle(BaseModel):
+    title: str | None
+    summary: str | None
+    tags: Optional[list[BaseTag]] | None
+    is_free: bool | None
+    price: float | None
+    content_elements: list[BaseArticleContentElement] | None
+
+class ResponseUpdateArticle(UpdatePartialArticle):
+    title_image_url: str
+    id: int
     
-# COMMENT ARTICLE   
 class BaseCommentArticle(BaseModel):
     content: str
     rating: Annotated[int, Field(ge=1, le=5)]
@@ -62,12 +73,15 @@ class ResponseArticle(BaseArticle):
     rating: float
     rating_count: int
 
+class ResponseArticleWishList(ResponseArticle):
+    is_bought: bool | None = None
+
 class ResponseArticleDetail(ResponseArticle):
     content_elements: list[ResponseArticleContentElement]
 
 # WISH LIST
 class BaseWishList(BaseModel):
-    article: ResponseArticle
+    article: ResponseArticleWishList
     user_id: int
 
 class ResponseWishList(BaseWishList):
@@ -81,3 +95,32 @@ class PurchasedArticle(BaseModel):
     
 class Slug(BaseModel):
     slug: str
+
+class CreateCollection(BaseModel):
+    title: str
+    discount_percentage: Annotated[int , Field(le=100, ge=0)]
+    articles_id: conset(int, min_length=2)
+    short_description: Annotated[str, Field(max_length=500)]
+    
+class UpdateCollection(BaseModel):
+    title: Union[None, str] = None
+    discount_percentage: Union[None, Annotated[int , Field(le=100, ge=0)]] = None
+    articles_id: Union[None, conset(int, min_length=2)] = None
+    short_description: Union[None, Annotated[str, Field(max_length=500)]] = None
+    
+class Collection(BaseModel):
+    id: int
+    owner_id: int
+    title: str
+    short_description: str
+    discount_percentage: int
+    collection_image_url: str
+    price: float
+    created_at: datetime
+    updated_at: datetime
+    articles_count: int
+    rating: float = 0.0
+    articles_id: list[int]
+    
+class CollectionDetail(Collection):
+    articles: list[ResponseArticleWishList]

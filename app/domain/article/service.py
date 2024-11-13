@@ -239,3 +239,71 @@ def search_articles(
         query = query.order_by(sort_column.desc())
 
     return query.all()
+
+def create_collection(db: Session, collection: schemas.CreateArticle, articles: list[models.Article], user_id: int) -> models.Collection:
+    db_collection = models.Collection(articles=articles, owner_id=user_id, **collection)
+    db.add(db_collection)
+    db.commit()
+    db.refresh(db_collection)
+    
+    return db_collection
+    
+def get_collections_by_user_id(db: Session, user_id: int) -> list[models.Collection]:
+    return db.query(models.Collection).filter(models.Collection.owner_id == user_id).all()
+
+def get_collections_by_article_id(db: Session, article_id: int) -> list[models.Collection]:
+    return db.query(models.Collection).join(models.CollectionArticle).filter(models.CollectionArticle.article_id == article_id).all()
+
+def get_collection_by_id(db: Session, collection_id: int) -> models.Collection:
+    return db.query(models.Collection).filter(models.Collection.id == collection_id).first()
+
+def delete_collection(db: Session, db_collection: models.Collection) -> bool:
+    db.delete(db_collection)
+    db.commit()
+    return True
+    
+def partial_update_collection(db: Session, db_collection: models.Collection, update_collection: schemas.UpdateCollection | dict):
+    if isinstance(update_collection, schemas.UpdateCollection):
+        update_collection = collection.model_dump(exclude_unset=True)
+
+    for field, value in update_collection.items():
+        setattr(db_collection, field, value)
+     
+    db.commit()
+    db.refresh(db_collection)
+    return db_collection
+
+
+def partial_update_article(db: Session, db_article: models.Article, article: Union[schemas.UpdatePartialArticle, dict], title_image: Union[str, None]) -> models.Article:
+
+    if isinstance(article, schemas.UpdatePartialArticle):
+        article = article.model_dump(exlude_unset=True)
+        
+    if title_image is not None:
+        setattr(db_article, 'title_image', title_image)
+        
+    for attribute, value in article.items():
+        if attribute == 'content_elements':
+            db_content_elements = [
+                models.ArticleContentElement(
+                    article_id=db_article.id, 
+                    order=order + 1, 
+                    **content_element
+                ) 
+                for order, content_element in enumerate(value, start=0)
+            ]
+            setattr(db_article, attribute, db_content_elements)
+            
+        elif attribute == 'tags':
+            tags = [get_or_create(db, models.Tag, value=tag['value']) for tag in value]
+            if len(tags) > 3:
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Zbyt wiele tagów. Maksymalnie dozwolone jest 3.")
+            setattr(db_article, attribute, tags)
+        else:
+            setattr(db_article, attribute, value)
+
+        
+    db.commit()
+    db.refresh(db_article)
+    db_article.content_elements = sorted(db_article.content_elements,key=lambda e: e.order)
+    return db_article

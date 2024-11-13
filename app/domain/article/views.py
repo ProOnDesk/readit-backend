@@ -1,5 +1,5 @@
 from sqladmin import ModelView
-from .models import Article, Tag, ArticleComment, WishList, ArticleContentElement
+from .models import Article, Tag, ArticleComment, WishList, ArticleContentElement, Collection, CollectionArticle
 
 class ArticleView(ModelView, model=Article):
     column_list = [
@@ -62,8 +62,36 @@ class WishListView(ModelView, model=WishList):
 class ArticleContentElementView(ModelView, model=ArticleContentElement):
     column_list = [
         'id', 
-        'article_id', 
-        'content_type',
-        'content', 
-        'order'
+        'owner_id', 
+        'title', 
+        'short_description',
+        'discount_percentage',
+        'collection_image',
+        'articles_count',  # Custom property from the model
+        'price',  # Custom property from the model
+        'created_at',
+        'updated_at'
+    ]
+    form_columns = [
+        'owner_id',
+        'title',
+        'short_description',
+        'discount_percentage',
+        'collection_image',
+        'articles'
+    ]
+class CollectionView(ModelView, model=Collection):
+    column_list = [
+        
+    ]
+    
+class CollectionArticleView(ModelView, model=CollectionArticle):
+    column_list = [
+        'id', 
+        'collection_id', 
+        'article_id'
+    ]
+    form_columns = [
+        'collection_id',
+        'article_id'
     ]
