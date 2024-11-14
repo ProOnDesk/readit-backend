@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status, File, UploadFile, Form, Query, Cookie
 from sqlalchemy.orm import Session
 from app.domain.article import schemas, service, models
-from app.dependencies import get_db, authenticate, Tokens, DefaultResponseModel
+from app.dependencies import send_email, get_db, DefaultResponseModel, authenticate, Responses, Example, CreateExampleResponse, CreateAuthResponses
 from typing import Annotated, Union, Literal, Optional
 from fastapi_pagination import Page, paginate
 from app.config import IMAGE_DIR, IP_ADDRESS, IMAGE_URL
@@ -106,7 +106,8 @@ async def create_article(
 ) -> schemas.ResponseArticleDetail:
     try:
         article = json.loads(article)
-        # Validate
+        
+        # For validating scheme
         schemas.CreateArticle(**article)
         
         check_file_if_image(title_image)
@@ -131,21 +132,22 @@ async def create_article(
             for image, content_element in zip(images_for_content_type_image, image_content_elements):
                 check_file_if_image(image)
                 image.filename = f'{uuid4()}.{image.filename.split(".")[-1]}'
+                
                 contents = await image.read()
                 
                 with open(f"{IMAGE_DIR}{image.filename}", "wb") as f:
                     f.write(contents)
+                    
                 content_element['content'] = f'{IP_ADDRESS}{IMAGE_URL}{image.filename}'
+                
         else:
             if len(image_content_elements) != 0:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    detail='Number of images does not match number of content elements.'
+                    detail='Liczba obrazów nie zgadza się z liczbą elementów zawartości obrazu w artykule.'
                     )
-
             
         db_article = service.create_article(db=db, article=article, user_id=user_id, title_image=title_image_url)
-
         
         return db_article
     
@@ -182,7 +184,7 @@ async def get_my_articles(
     is_free: Optional[bool] = None,
     sort_order: Literal['asc', 'desc'] = 'desc',
     sort_by: Literal['views', 'date', 'price', 'rating'] = 'date',
-    ) -> Page[schemas.ResponseArticle]:
+) -> Page[schemas.ResponseArticle]:
     
     db_articles = service.search_articles(
         db=db,
@@ -201,15 +203,51 @@ async def get_my_articles(
     )
     
     return paginate(db_articles) 
-@router.post('/for-edit/slug', status_code=status.HTTP_200_OK)
-async def get_for_edit_article_by_id(slug: schemas.Slug, user_id: Annotated[int, Depends(authenticate)], db: Annotated[Session, Depends(get_db)]) -> schemas.ResponseUpdateArticle:
+
+@router.post(
+    '/for-edit/slug',
+    status_code=status.HTTP_200_OK,
+    responses=Responses(
+        CreateExampleResponse(
+            code=status.HTTP_401_UNAUTHORIZED,
+            description='Unauthorized',
+            content_type='application/json',
+            examples=[
+                Example(
+                    name='Unauthorized',
+                    summary='Unauthorized',
+                    description='The user is not authorized to access this article.',
+                    value=DefaultErrorModel(detail='Nie masz uprawnień do wyświetlania tego artykułu do edycji.')
+                )
+            ]
+        ),
+        CreateExampleResponse(
+            code=status.HTTP_404_NOT_FOUND,
+            description='Not Found',
+            content_type='application/json',
+            examples=[
+                Example(
+                    name='ArticleNotFound',
+                    summary='Article not found',
+                    description='The article with the given slug does not exist.',
+                    value=DefaultErrorModel(detail='Artykuł nie istnieje.')
+                )
+            ]
+        )
+    )
+)
+async def get_for_edit_article_by_slug(
+    slug: schemas.Slug,
+    user_id: Annotated[int, Depends(authenticate)],
+    db: Annotated[Session, Depends(get_db)]
+) -> schemas.ResponseUpdateArticle:
     db_article = service.get_article_by_slug(db=db, slug_title=slug.slug)
     
     if db_article is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Artykuł nie istnieje."
-            )
+        )
 
     if db_article.author_id != user_id:
         raise HTTPException(
@@ -219,9 +257,50 @@ async def get_for_edit_article_by_id(slug: schemas.Slug, user_id: Annotated[int,
 
     return db_article
 
-@router.get('/for-edit/id/{article_id}', status_code=status.HTTP_200_OK)
-async def get_for_edit_article_by_id(article_id: int, user_id: Annotated[int, Depends(authenticate)], db: Annotated[Session, Depends(get_db)]) -> schemas.ResponseUpdateArticle:
+@router.get(
+    '/for-edit/id/{article_id}',
+    status_code=status.HTTP_200_OK,
+responses=Responses(
+        CreateExampleResponse(
+            code=status.HTTP_401_UNAUTHORIZED,
+            description='Unauthorized',
+            content_type='application/json',
+            examples=[
+                Example(
+                    name='Unauthorized',
+                    summary='Unauthorized',
+                    description='The user is not authorized to access this article.',
+                    value=DefaultErrorModel(detail='Nie masz uprawnień do wyświetlania tego artykułu do edycji.')
+                )
+            ]
+        ),
+        CreateExampleResponse(
+            code=status.HTTP_404_NOT_FOUND,
+            description='Not Found',
+            content_type='application/json',
+            examples=[
+                Example(
+                    name='ArticleNotFound',
+                    summary='Article not found',
+                    description='The article with the given id does not exist.',
+                    value=DefaultErrorModel(detail='Artykuł nie istnieje.')
+                )
+            ]
+        )
+    )
+)
+async def get_for_edit_article_by_id(article_id: int,
+                                     user_id: Annotated[int, Depends(authenticate)],
+                                     db: Annotated[Session, Depends(get_db)]
+) -> schemas.ResponseUpdateArticle:
     db_article = service.get_article_by_id(db=db, article_id=article_id)
+    
+    if db_article is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Artykuł nie istnieje."
+        )
+        
     if db_article.author_id != user_id:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -232,7 +311,66 @@ async def get_for_edit_article_by_id(article_id: int, user_id: Annotated[int, De
 
 @router.patch(  
     '/id/{article_id}',
-    status_code=status.HTTP_200_OK
+    status_code=status.HTTP_200_OK,
+    responses=Responses(
+        CreateExampleResponse(
+            code=status.HTTP_400_BAD_REQUEST,
+            description="Bad Request",
+            content_type='application/json',
+            examples=[
+                Example(
+                    name="InvalidFileFormat",
+                    summary="Invalid file format",
+                    description="The title_image and images_for_content_type_image must be in one of the following formats: img, png, jpg, jpeg.",
+                    value=DefaultErrorModel(detail="Akceptowane są tylko pliki o formatach img, png, jpg i jpeg.")
+                ),
+                Example(
+                    name="InvalidJSONFormat",
+                    summary="Invalid JSON format",
+                    description="The provided JSON is not valid.",
+                    value=DefaultErrorModel(detail="Nieprawidłowy format JSON: <error_message>")
+                ),
+                Example(
+                    name="ImageCountMismatch",
+                    summary="Image count mismatch",
+                    description="The number of provided images does not match the number of image content elements.",
+                    value=DefaultErrorModel(detail="Liczba obrazów nie zgadza się z liczbą elementów zawartości.")
+                ),
+                Example(
+                    name="ImageCountMismatchNewElements",
+                    summary="Image count mismatch for new elements",
+                    description="The number of provided images does not match the number of new image content elements.",
+                    value=DefaultErrorModel(detail="Liczba obrazów nie zgadza się z liczbą nowych elementów zawartości.")
+                ),
+            ]
+        ),
+        CreateExampleResponse(
+            code=status.HTTP_401_UNAUTHORIZED,
+            description='Unauthorized',
+            content_type='application/json',
+            examples=[
+                Example(
+                    name="Unauthorized",
+                    summary="Unauthorized",
+                    description="The user is not authorized to edit this article.",
+                    value=DefaultErrorModel(detail="Nie masz uprawnień do edytowania tego artykułu.")
+                )
+            ]
+        ),
+        CreateExampleResponse(
+            code=status.HTTP_404_NOT_FOUND,
+            description='Not Found',
+            content_type='application/json',
+            examples=[
+               Example(
+                    name="ArticleNotFound",
+                    summary="Article not found",
+                    description="The article with the given ID does not exist.",
+                    value=DefaultErrorModel(detail="Artykuł nie istnieje.")
+                )               
+            ]
+        )
+    )
 )
 async def update_partial_article_by_id(
     article_id: int,
@@ -241,15 +379,14 @@ async def update_partial_article_by_id(
     images_for_content_type_image: list[UploadFile] = None,
     title_image: Union[Annotated[UploadFile, File(...)]] = None,
     article: Annotated[Union[schemas.CreateArticle, str], Form(...)] = None
-
-
-    ) -> schemas.ResponseArticleDetail:
+) -> schemas.ResponseArticleDetail:
     try:
         if title_image is None and article is None:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail='Brak danych do aktualizacji.'
             )
+            
         db_article = service.get_article_by_id(db=db, article_id=article_id)
         
         if not db_article:
@@ -265,7 +402,7 @@ async def update_partial_article_by_id(
             )
             
         article = json.loads(article)
-        # validate
+        # for validating
         schemas.CreateArticle(**article)
         
         title_image_url = None
@@ -273,9 +410,12 @@ async def update_partial_article_by_id(
             check_file_if_image(title_image)
 
             title_image.filename = f'{uuid4()}.{title_image.filename.split(".")[-1]}'
+            
             contents = await title_image.read()
+            
             with open(f"{IMAGE_DIR}{title_image.filename}", "wb") as f:
                 f.write(contents)
+                
             title_image_url = f'{IMAGE_URL}{title_image.filename}'
         
         image_content_elements = [ce for ce in article['content_elements'] if ce['content_type'] == 'image' and ce['content'] == '']
@@ -285,7 +425,7 @@ async def update_partial_article_by_id(
             if len(images_for_content_type_image) != len_image_content_elements:
                     raise HTTPException(
                         status_code=status.HTTP_400_BAD_REQUEST,
-                        detail='Number of images does not match number of new content elements.'
+                        detail='Liczba obrazów nie zgadza się z liczbą nowych elementów zawartości.'
                     )
             for image, content_element in zip(images_for_content_type_image, image_content_elements):
                 if content_element['content'] == '':
@@ -299,7 +439,7 @@ async def update_partial_article_by_id(
             if len(image_content_elements) != 0:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    detail='Number of images does not match number of content elements.'
+                    detail='Liczba obrazów nie zgadza się z liczbą elementów zawartości.'
                     )
 
         
@@ -309,17 +449,17 @@ async def update_partial_article_by_id(
     except json.JSONDecodeError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f'Invalid JSON format: {str(e)}'
+            detail=f'Nieprawidłowy format JSON: {str(e)}'
         )
     except ValidationError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f'Validation error: {str(e)}'
-        )
+        raise e
     except HTTPException as e:
         raise e
 
-@router.get('/all', status_code=status.HTTP_200_OK, responses=Responses(CreateExampleResponse(
+@router.get(
+    '/all', 
+    status_code=status.HTTP_200_OK,
+    responses=Responses(CreateExampleResponse(
             code=status.HTTP_400_BAD_REQUEST,
             description="Bad Request",
             content_type='application/json',
@@ -331,7 +471,9 @@ async def update_partial_article_by_id(
                     value=DefaultErrorModel(detail="Niepoprawny typ sortowania. Akceptowane typy to: 'asc' lub 'desc'.")
                 )
             ]
-        )))
+        )
+    )
+)
 async def get_articles(sort_order: Union[None, Literal['asc', 'desc']] = None, db: Session = Depends(get_db)) -> Page[schemas.ResponseArticle]:
     
     if sort_order not in [None, 'asc', 'desc']:
@@ -591,6 +733,7 @@ async def get_article_by_slug_title(slug: schemas.Slug, db: Session = Depends(ge
 )
 async def delete_article_by_id(article_id: int, user_id: Annotated[int, Depends(authenticate)], db: Session = Depends(get_db)) :
     db_article = service.get_article_by_id(db=db, article_id=article_id)
+    
     if db_article is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Artykuł nie istnieje.")
 
@@ -747,11 +890,13 @@ async def create_comment_by_article_id(article_comment: schemas.CreateCommentArt
 )
 async def delete_comment_by_article_id(article_id: int, user_id: Annotated[int, Depends(authenticate)], db: Session = Depends(get_db)):
     article_comment = service.get_article_comment_by_user_id_and_article_id(db=db, user_id=user_id, article_id=article_id)
+    
     if article_comment is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, 
             detail="Nie znaleziono komentarza powiązanego z tym użytkownikiem i artykułem."
         )
+        
     if article_comment.author_id != user_id:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, 
@@ -1076,7 +1221,70 @@ def is_article_bought(article_id: int, user_id: Annotated[int, Depends(authentic
     return service.has_user_purchased_article(db=db, user_id=user_id, article_id=article_id)
 
 
-@router.post('/collection', status_code=status.HTTP_201_CREATED)
+@router.post(
+    '/collection',
+    status_code=status.HTTP_201_CREATED,
+    responses=Responses(
+        CreateExampleResponse(
+            code=status.HTTP_400_BAD_REQUEST,
+            description='Bad Request',
+            content_type='application/json',
+            examples=[
+            Example(
+                name="InvalidFileFormat",
+                summary="Invalid file format",
+                description="The collection_image must be in one of the following formats: img, png, jpg, jpeg.",
+                value=DefaultErrorModel(detail="Akceptowane są tylko pliki o formatach img, png, jpg i jpeg.")
+            ),
+            Example(
+                name="InvalidJSONFormat",
+                summary="Invalid JSON format",
+                description="The provided JSON is not valid.",
+                value=DefaultErrorModel(detail="Nieprawidłowy format JSON: <error_message>")
+            )
+            ]
+        ),
+        CreateExampleResponse(
+            code=status.HTTP_403_FORBIDDEN,
+            description='Forbidden',
+            content_type='application/json',
+            examples=[
+            Example(
+                name="Unauthorized",
+                summary="Unauthorized",
+                description="The user is not authorized to add articles that are not authored by them.",
+                value=DefaultErrorModel(detail="Nie możesz dodać do swojej paczki artykułu, który nie jest Twojego autorstwa.")
+            )
+            ]
+        ),
+        CreateExampleResponse(
+            code=status.HTTP_404_NOT_FOUND,
+            description='Not Found',
+            content_type='application/json',
+            examples=[
+            Example(
+                name="ArticleNotFound",
+                summary="Article not found",
+                description="The article with the given ID does not exist.",
+                value=DefaultErrorModel(detail="Artykuł o id {article_id} nie został znaleziony.")
+            )
+            ]
+        ),
+        CreateExampleResponse(
+            code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            description="Internal Server Error",
+            content_type='application/json',
+            examples=[
+            Example(
+                name="UnexpectedError",
+                summary="Unexpected error",
+                description="An unexpected error occurred.",
+                value=DefaultErrorModel(detail="Wystąpił nieoczekiwany błąd: <error_message>")
+            )
+            ]
+        )
+    )
+)
 async def create_collection(
     collection: Annotated[Union[schemas.CreateCollection, str], Form(...)],
     collection_image: Annotated[UploadFile, File(...)],
@@ -1117,23 +1325,23 @@ async def create_collection(
         db_collection = service.create_collection(db=db, collection=collection, articles=articles, user_id=user_id)
         
         return db_collection
-    
+        
     except json.JSONDecodeError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f'Invalid JSON format: {str(e)}'
+            detail=f'Nieprawidłowy format JSON: {str(e)}'
         )
     except ValidationError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f'Validation error: {str(e)}'
+            detail=f'Błąd walidacji: {str(e)}'
         )
     except HTTPException as e:
-        raise e
+            e
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"An unexpected error occurred: {str(e)}"
+            detail=f"Wystąpił nieoczekiwany błąd: {str(e)}"
         )
         
 @router.get('/collections/me', status_code=status.HTTP_200_OK)
@@ -1188,7 +1396,63 @@ def get_collections_by_article_id(article_id: int, authenticated_user_id: Annota
     
     return paginate(db_collections)
 
-@router.patch('/collection/{collection_id}', status_code=status.HTTP_200_OK)
+@router.patch(
+    '/collection/{collection_id}',
+    status_code=status.HTTP_200_OK,
+    responses=Responses(
+        CreateExampleResponse(
+            code=status.HTTP_400_BAD_REQUEST,
+            description="Bad Request",
+            content_type='application/json',
+            examples=[
+                Example(
+                    name="InvalidFileFormat",
+                    summary="Invalid file format",
+                    description="The collection_image must be in one of the following formats: img, png, jpg, jpeg.",
+                    value=DefaultErrorModel(detail="Akceptowane są tylko pliki o formatach img, png, jpg i jpeg.")
+                ),
+                Example(
+                    name="InvalidJSONFormat",
+                    summary="Invalid JSON format",
+                    description="The provided JSON is not valid.",
+                    value=DefaultErrorModel(detail="Nieprawidłowy format JSON: <error_message>")
+                ),
+            ]
+        ),
+        CreateExampleResponse(
+            code=status.HTTP_403_FORBIDDEN,
+            description="Forbidden",
+            content_type='application/json',
+            examples=[
+                Example(
+                    name="Unauthorized",
+                    summary="Unauthorized",
+                    description="The user is not authorized to edit this collection.",
+                    value=DefaultErrorModel(detail="Nie masz uprawnień do edytowania tej paczki.")
+                )
+            ]
+        ),
+        CreateExampleResponse(
+            code=status.HTTP_404_NOT_FOUND,
+            description="Not Found",
+            content_type='application/json',
+            examples=[
+                Example(
+                    name="CollectionNotFound",
+                    summary="Collection not found",
+                    description="The collection with the given ID does not exist.",
+                    value=DefaultErrorModel(detail="Nie znaleziono paczki.")
+                ),
+                Example(
+                    name="ArticleNotFound",
+                    summary="Article not found",
+                    description="The article with the given ID does not exist.",
+                    value=DefaultErrorModel(detail="Artykuł o id {article_id} nie został znaleziony.")
+                )
+            ]
+        )
+    )
+)
 async def edit_partial_collection_by_id(
     collection_id: int,
     user_id: Annotated[int, Depends(authenticate)],
@@ -1235,7 +1499,6 @@ async def edit_partial_collection_by_id(
         collection['collection_image'] = collection_image_url
         
         articles_id = collection.pop('articles_id', None)
-        print()
         if isinstance(articles_id, list):
             articles = []
 
@@ -1285,7 +1548,51 @@ def get_collection_detail_by_id(collection_id: int, db: Annotated[Session, Depen
             
     return db_collection
 
-@router.delete('/collection/{collection_id}')
+@router.delete(
+    '/collection/{collection_id}',
+    status_code=status.HTTP_200_OK,
+    responses=Responses(
+        CreateExampleResponse(
+            code=status.HTTP_404_NOT_FOUND,
+            description="Not Found",
+            content_type='application/json',
+            examples=[
+                Example(
+                    name="CollectionNotFound",
+                    summary="Collection not found",
+                    description="The collection with the given ID does not exist.",
+                    value=DefaultErrorModel(detail="Nie znaleziono paczki.")
+                )
+            ]
+        ),
+        CreateExampleResponse(
+            code=status.HTTP_403_FORBIDDEN,
+            description="Forbidden",
+            content_type='application/json',
+            examples=[
+                Example(
+                    name="Unauthorized",
+                    summary="Unauthorized",
+                    description="The user is not authorized to delete this collection.",
+                    value=DefaultErrorModel(detail="Nie masz uprawnień do usuwania tej paczki.")
+                )
+            ]
+        ),
+        CreateExampleResponse(
+            code=status.HTTP_200_OK,
+            description="OK",
+            content_type='application/json',
+            examples=[
+                Example(
+                    name="CollectionDeleted",
+                    summary="Collection deleted",
+                    description="The collection was successfully deleted.",
+                    value=DefaultErrorModel(detail="Paczka została pomyślnie usunięta.")
+                )
+            ]
+        )
+    )
+)
 def delete_collection_by_id(collection_id: int, user_id: Annotated[int, Depends(authenticate)], db: Annotated[Session, Depends(get_db)]) -> bool:
     db_collection = service.get_collection_by_id(db=db, collection_id=collection_id)
     
@@ -1303,8 +1610,39 @@ def delete_collection_by_id(collection_id: int, user_id: Annotated[int, Depends(
         
     return service.delete_collection(db=db, db_collection=db_collection)
 
-@router.delete('/collection/all/me')
-def delete_user_all_collections(user_id: Annotated[int , Depends(authenticate)], db: Annotated[Session, Depends(get_db)]) -> bool:
+@router.delete(
+    '/collection/all/me',
+    status_code=status.HTTP_200_OK,
+    responses=Responses(
+        CreateExampleResponse(
+            code=status.HTTP_404_NOT_FOUND,
+            description="Not Found",
+            content_type='application/json',
+            examples=[
+                Example(
+                    name="CollectionsNotFound",
+                    summary="Collections not found",
+                    description="No collections found for the user.",
+                    value=DefaultErrorModel(detail="Nie znaleziono paczek użytkownika do usunięcia.")
+                )
+            ]
+        ),
+        CreateExampleResponse(
+            code=status.HTTP_200_OK,
+            description="OK",
+            content_type='application/json',
+            examples=[
+                Example(
+                    name="CollectionsDeleted",
+                    summary="Collections deleted",
+                    description="All collections for the user were successfully deleted.",
+                    value=DefaultErrorModel(detail="Wszystkie paczki użytkownika zostały pomyślnie usunięte.")
+                )
+            ]
+        )
+    )
+)
+def delete_user_all_collections(user_id: Annotated[int, Depends(authenticate)], db: Annotated[Session, Depends(get_db)]) -> bool:
     db_collections = service.get_collections_by_user_id(db=db, user_id=user_id)
     
     if not db_collections:
@@ -1315,7 +1653,51 @@ def delete_user_all_collections(user_id: Annotated[int , Depends(authenticate)],
 
     return all([service.delete_collection(db=db, db_collection=db_collection) for db_collection in db_collections])
 
-@router.post('/collection/buy/{collection_id}')
+@router.post(
+    '/collection/buy/{collection_id}',
+    status_code=status.HTTP_200_OK,
+    responses=Responses(
+        CreateExampleResponse(
+            code=status.HTTP_404_NOT_FOUND,
+            description="Not Found",
+            content_type='application/json',
+            examples=[
+                Example(
+                    name="CollectionNotFound",
+                    summary="Collection not found",
+                    description="The collection with the given ID does not exist.",
+                    value=DefaultErrorModel(detail="Nie znaleziono paczki.")
+                )
+            ]
+        ),
+        CreateExampleResponse(
+            code=status.HTTP_403_FORBIDDEN,
+            description="Forbidden",
+            content_type='application/json',
+            examples=[
+                Example(
+                    name="CannotBuyOwnCollection",
+                    summary="Cannot buy own collection",
+                    description="The user cannot buy their own collection.",
+                    value=DefaultErrorModel(detail="Nie możesz kupić własnej paczki.")
+                )
+            ]
+        ),
+        CreateExampleResponse(
+            code=status.HTTP_200_OK,
+            description="OK",
+            content_type='application/json',
+            examples=[
+                Example(
+                    name="CollectionPurchased",
+                    summary="Collection purchased",
+                    description="The collection was successfully purchased.",
+                    value=DefaultErrorModel(detail="Paczka z artykułami została pomyślnie zakupiona.")
+                )
+            ]
+        )
+    )
+)
 def buy_collection_by_id(collection_id: int, user_id: Annotated[int, Depends(authenticate)], db: Annotated[Session, Depends(get_db)]):
     db_collection = service.get_collection_by_id(db=db, collection_id=collection_id)
     
@@ -1331,8 +1713,7 @@ def buy_collection_by_id(collection_id: int, user_id: Annotated[int, Depends(aut
             detail="Nie możesz kupić własnej paczki."
         )
     for article in db_collection.articles:
-        if service.has_user_purchased_article(db=db, user_id=user_id, article_id=article.id):
-            continue
-        service.add_purchased_article(db=db, user_id=user_id, article_id=article.id)
+        if not service.has_user_purchased_article(db=db, user_id=user_id, article_id=article.id):
+            service.add_purchased_article(db=db, user_id=user_id, article_id=article.id)
     
     return {"detail": "Paczka z artykułami została pomyślnie zakupiona."} 
