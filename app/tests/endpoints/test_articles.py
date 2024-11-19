@@ -496,7 +496,7 @@ def test_articles_comment_delete_by_article_id(
     assert res.status_code == expected_code
 
 # TEST FOR ARTICLES - WISH LIST ENDPOINTS
-def test_articles_wish_list_post_add
+# def test_articles_wish_list_post_add
 
 # def test_articles_wish_list_get_is_by_article_id(
 #     authorized_client: TestClient,
