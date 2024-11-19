@@ -9,13 +9,13 @@ services:
     depends_on:
       - db_test
     environment:
-      - DATABASE_URL=postgresql://postgres:password@db_test:5434/test 
+      - DATABASE_URL=postgresql://postgres:password@db_test:5434/test
       - TESTING=1
 
     volumes:
       - ./app:/app/app
     command: >
-      sh -c "pytest -v --tb=long -s --capture=no"
+      sh -c "pytest -v --tb=long -s --disable-warnings"
     env_file:
       - ./.env
     networks:

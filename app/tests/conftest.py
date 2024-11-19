@@ -1,19 +1,20 @@
 from fastapi import status
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import sessionmaker, Session
 from app.main import app
-from app.domain.user.service import get_user_by_email
+from app.domain.user.service import get_user_by_email, hash_password
 from app.domain.model_base import Base 
+from app.domain.user.models import User
 from app.config import DATABASE_URL, SECRET_KEY, ENCRYPTION_ALGORITHM, ACCESS_TOKEN_EXPIRE_TIME, REFRESH_TOKEN_EXPIRE_TIME
 from app.dependencies import get_db, EncodedTokens, create_token
-from typing import Generator
+from typing import Generator, Dict
 from time import sleep
 import pytest
 import json
 import datetime
 import jwt
-
+from .utils import add_example_article
 connection_engine = None
 
 while connection_engine is None:
@@ -32,7 +33,7 @@ TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engin
 
 
 @pytest.fixture
-def session():
+def session() -> Generator[Session, None, None]:
     Base.metadata.drop_all(bind=engine)
     Base.metadata.create_all(bind=engine)
     
@@ -43,7 +44,7 @@ def session():
         db.close()
 
 @pytest.fixture
-def client(session) -> Generator[TestClient, None, None]:
+def client(session: Session) -> Generator[TestClient, None, None]:
     with TestClient(app) as c:
         def override_get_db():
             try:
@@ -52,61 +53,45 @@ def client(session) -> Generator[TestClient, None, None]:
                 session.close()
         
         app.dependency_overrides[get_db] = override_get_db
+        
         yield c
 
 @pytest.fixture
-def create_user(client):
+def create_user(session: Session) -> dict:
     user_data = {
-        "email": "adam@adam.pl",
-        "password": "Adam262!",
-        "firstname": "adam",
-        "lastname": "adam",
-        "sex": "adam"
+        'email': 'adam@adam.pl',
+        'hashed_password': hash_password('PasswordExample'),
+        'first_name': 'adam',
+        'last_name': 'adam',
+        'sex': 'adam',
+        'is_active': True
     }
-    res = client.post('/user/register', json=user_data)
+    user = User(**user_data)
     
-    assert res.status_code == 201
+    session.add(user)
+    session.commit()
+    session.refresh(user)
     
-    email = user_data.get('email')
-    
-    return email
-    
-@pytest.fixture
-def confirm_user(client, create_user):
-    code = jwt.encode({'email': create_user}, SECRET_KEY, algorithm=ENCRYPTION_ALGORITHM)
-    
-    res = client.post(f'/user/verify/{code}')
-    
-    assert res.status_code == 200
-    print(res.json())
-    
-    return create_user
+    return user 
 
 @pytest.fixture
-def create_tokens(confirm_user, session):
-    user = get_user_by_email(db=session, email=confirm_user)
-    
-    if not user.is_active:
-        raise Exception('Zweryfikuj konto')
-
-    # Create the tokens
+def create_tokens(create_user: User, session: Session):
     access_token = create_token({
-        "user_id": user.id,
-        "expiration_date": (datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(minutes=ACCESS_TOKEN_EXPIRE_TIME)).isoformat(),
-        "type": "access"
+        'user_id': create_user.id,
+        'expiration_date': (datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(minutes=ACCESS_TOKEN_EXPIRE_TIME)).isoformat(),
+        'type': 'access'
     })
     refresh_token = create_token({
-        "user_id": user.id,
-        "expiration_date": (datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(days=REFRESH_TOKEN_EXPIRE_TIME)).isoformat(),
-        "type": "refresh"
+        'user_id': create_user.id,
+        'expiration_date': (datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(days=REFRESH_TOKEN_EXPIRE_TIME)).isoformat(),
+        'type': 'refresh'
     })
     return EncodedTokens(access_token=access_token, refresh_token=refresh_token)
 
 
 @pytest.fixture
-def authorized_client(client, create_tokens):
-    client.cookies.set("access_token", create_tokens.access_token)
-    client.cookies.set("refresh_token", create_tokens.refresh_token)
+def authorized_client(client: TestClient, create_tokens: EncodedTokens) -> TestClient:
+    client.cookies.set('access_token', create_tokens.access_token)
+    client.cookies.set('refresh_token', create_tokens.refresh_token)
     
     return client
-    
