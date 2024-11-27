@@ -1,7 +1,7 @@
-from fastapi import APIRouter, Depends, HTTPException, status, File, UploadFile, Form, Query, Cookie
+from fastapi import APIRouter, Depends, HTTPException, status, File, UploadFile, Form, Query, Cookie, Request, exceptions
 from sqlalchemy.orm import Session
 from app.domain.article import schemas, service, models
-from app.dependencies import send_email, get_db, DefaultResponseModel, authenticate, Responses, Example, CreateExampleResponse, CreateAuthResponses, DefaultErrorModel
+from app.dependencies import send_email, get_db, DefaultResponseModel, authenticate, Responses, Example, CreateExampleResponse, CreateAuthResponses, DefaultErrorModel, format_validation_error
 from typing import Annotated, Union, Literal, Optional
 from fastapi_pagination import Page, paginate
 from app.config import IMAGE_DIR, IP_ADDRESS, IMAGE_URL
@@ -13,7 +13,8 @@ router = APIRouter(
     prefix='/articles',
     tags=['Articles']
 )
-
+    
+           
 def check_user_has_permission_for_article(
     db: Session,
     article_id: int,
@@ -91,7 +92,7 @@ def check_file_if_image(file: UploadFile) -> None:
                     name="UnexpectedError",
                     summary="Unexpected error",
                     description="An unexpected error occurred.",
-                    value=DefaultErrorModel(detail="Wystąpił nieoczekiwany błąd: <error_message>")
+                    value=DefaultErrorModel(detail="Wystąpił nieoczekiwany błąd.")
                 )
             ]
         )
@@ -159,14 +160,14 @@ async def create_article(
     except ValidationError as e:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=f'Błąd walidacji: {str(e)}'
+            detail=format_validation_error(e)
         )
     except HTTPException as e:
         raise e
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Wystąpił nieoczekiwany błąd: {str(e)}"
+            detail=f"Wystąpił nieoczekiwany błąd."
         )
         
 @router.get('/me', status_code=status.HTTP_200_OK)
@@ -452,7 +453,10 @@ async def update_partial_article_by_id(
             detail=f'Nieprawidłowy format JSON: {str(e)}'
         )
     except ValidationError as e:
-        raise e
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=format_validation_error(e)
+        )
     except HTTPException as e:
         raise e
 
@@ -913,6 +917,19 @@ async def delete_comment_by_article_id(article_id: int, user_id: Annotated[int, 
     status_code=status.HTTP_200_OK,
     responses=Responses(
         CreateExampleResponse(
+            code=status.HTTP_400_BAD_REQUEST,
+            description="Bad Request",
+            content_type='application/json',
+            examples=[
+                Example(
+                    name="ArticleAlreadyInWishList",
+                    summary="Article already in wish list",
+                    description="The article is already in the user's wish list.",
+                    value=DefaultErrorModel(detail="Masz już ten artykuł na swojej liście życzeń.")
+                )
+            ]
+        ),
+        CreateExampleResponse(
             code=status.HTTP_404_NOT_FOUND,
             description="Not Found",
             content_type='application/json',
@@ -933,6 +950,9 @@ async def add_article_to_wish_list(article_id: int, user_id: Annotated[int, Depe
 
 @router.get('/wish-list/is/{article_id}', status_code=status.HTTP_200_OK)
 async def is_article_in_wish_list(article_id: int, user_id: Annotated[int, Depends(authenticate)], db: Session = Depends(get_db)) -> bool:
+    if not service.get_article_by_id(db=db, article_id=article_id):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Artykuł nie istnieje.")
+    
     return service.has_user_article_in_wish_list(db=db, user_id=user_id, article_id=article_id)
 
 @router.post(
@@ -1016,16 +1036,23 @@ async def get_articles_from_wish_list(user_id: Annotated[int, Depends(authentica
     status_code=status.HTTP_200_OK,
     responses=Responses(
         CreateExampleResponse(
+            code=status.HTTP_404_NOT_FOUND,
+            description='Not Found',
+            content_type='application/json',
+            examples=[
+                Example(
+                    name='ArticleNotFound',
+                    summary='Article not found',
+                    description='The article with the given id does not exist.',
+                    value=DefaultErrorModel(detail='Artykuł nie istnieje.')
+                )
+            ]
+        ),
+        CreateExampleResponse(
             code=status.HTTP_400_BAD_REQUEST,
             description="Bad Request",
             content_type='application/json',
             examples=[
-                Example(
-                    name="ArticleNotFound",
-                    summary="Article not found",
-                    description="The article with the given article id does not exist.",
-                    value=DefaultErrorModel(detail="Artykuł nie istnieje.")
-                ),
                 Example(
                     name="ArticleNotInWishList",
                     summary="Article not in wish list",
@@ -1050,9 +1077,8 @@ async def get_articles_from_wish_list(user_id: Annotated[int, Depends(authentica
     )
 )
 async def delete_article_from_wish_list(article_id: int, user_id: Annotated[int, Depends(authenticate)], db: Session = Depends(get_db)):
-    db_article = db.query(models.Article).filter(models.Article.id == article_id).first()
-    if db_article is None:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Artykuł nie istnieje.")
+    if not service.get_article_by_id(db=db, article_id=article_id):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Artykuł nie istnieje.")
     
     db_wish_list = service.get_wish_list_by_user_id_and_article_id(db=db, user_id=user_id, article_id=article_id)
     if db_wish_list is None:
@@ -1133,6 +1159,13 @@ async def delete_article_from_wish_list(article_id: int, user_id: Annotated[int,
 )
 async def buy_article_by_id(article_id: int, user_id: Annotated[int, Depends(authenticate)], db: Session = Depends(get_db)):
     try:
+        article = service.get_article_by_id(db=db, article_id=article_id)
+        if not article:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, 
+                detail="Nie znaleziono artykułu."
+            )
+            
         if service.is_user_author_of_article(db=db, user_id=user_id, article_id=article_id):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
@@ -1143,13 +1176,6 @@ async def buy_article_by_id(article_id: int, user_id: Annotated[int, Depends(aut
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN, 
                 detail="Już zakupiłeś ten artykuł."
-            )
-            
-        article = service.get_article_by_id(db=db, article_id=article_id)
-        if not article:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, 
-                detail="Nie znaleziono artykułu."
             )
             
         service.add_purchased_article(db=db, user_id=user_id, article_id=article_id)
@@ -1164,62 +1190,40 @@ async def buy_article_by_id(article_id: int, user_id: Annotated[int, Depends(aut
             detail=f"An unexpected error occurred: {str(e)}"
         )
         
+@router.get('/bought-list', status_code=status.HTTP_200_OK,)
+async def get_bought_articles(user_id: Annotated[int, Depends(authenticate)], db: Session = Depends(get_db)) -> Page[schemas.PurchasedArticle]:
+    purchased_articles = service.get_purchased_articles_by_user_id(db=db, user_id=user_id)
+
+    return paginate(purchased_articles)
+
 @router.get(
-    '/bought-list',
+    '/is-bought/{article_id}',
     status_code=status.HTTP_200_OK,
     responses=Responses(
         CreateExampleResponse(
             code=status.HTTP_404_NOT_FOUND,
-            description="Not Found",
+            description='Not Found',
             content_type='application/json',
             examples=[
                 Example(
-                    name="NoPurchasedArticles",
-                    summary="No purchased articles found",
-                    description="The user has not purchased any articles.",
-                    value=DefaultErrorModel(detail="Nie znaleziono zakupionych artykułów.")
+                    name='ArticleNotFound',
+                    summary='Article not found',
+                    description='The article with the given id does not exist.',
+                    value=DefaultErrorModel(detail='Artykuł nie istnieje.')
                 )
             ]
         ),
-        CreateExampleResponse(
-            code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            description="Internal Server Error",
-            content_type='application/json',
-            examples=[
-                Example(
-                    name="UnexpectedError",
-                    summary="Unexpected error",
-                    description="An unexpected error occurred.",
-                    value=DefaultErrorModel(detail="An unexpected error occurred: {str(e)}")
-                )
-            ]
-        )
     )
 )
-async def get_bought_articles(user_id: Annotated[int, Depends(authenticate)], db: Session = Depends(get_db)) -> Page[schemas.PurchasedArticle]:
-    try:
-        purchased_articles = service.get_purchased_articles_by_user_id(db=db, user_id=user_id)
-
-        if not purchased_articles:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Nie znaleziono zakupionych artykułów."
-            )
-        
-        return paginate(purchased_articles)
-    
-    except HTTPException as e:
-        raise e
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, 
-            detail=f"An unexpected error occurred: {str(e)}"
-        )
-        
-@router.get('/is-bought/{article_id}')
 def is_article_bought(article_id: int, user_id: Annotated[int, Depends(authenticate)], db: Session = Depends(get_db)) -> bool:
+    article = service.get_article_by_id(db=db, article_id=article_id)
+    if not article:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, 
+            detail="Nie znaleziono artykułu."
+        )
+            
     return service.has_user_purchased_article(db=db, user_id=user_id, article_id=article_id)
-
 
 @router.post(
     '/collection',
@@ -1245,8 +1249,8 @@ def is_article_bought(article_id: int, user_id: Annotated[int, Depends(authentic
             ]
         ),
         CreateExampleResponse(
-            code=status.HTTP_403_FORBIDDEN,
-            description='Forbidden',
+            code=status.HTTP_401_UNAUTHORIZED,
+            description='Unauthorized',
             content_type='application/json',
             examples=[
             Example(
@@ -1279,7 +1283,7 @@ def is_article_bought(article_id: int, user_id: Annotated[int, Depends(authentic
                 name="UnexpectedError",
                 summary="Unexpected error",
                 description="An unexpected error occurred.",
-                value=DefaultErrorModel(detail="Wystąpił nieoczekiwany błąd: <error_message>")
+                value=DefaultErrorModel(detail="Wystąpił nieoczekiwany błąd.")
             )
             ]
         )
@@ -1316,7 +1320,7 @@ async def create_collection(
                 )
             if article.author_id != user_id:
                 raise HTTPException(
-                    status_code=status.HTTP_403_FORBIDDEN,
+                    status_code=status.HTTP_401_UNAUTHORIZED,
                     detail=f"Nie możesz dodać do swojej paczki artykułu, który nie jest Twojego autorstwa."
                 )
                 
@@ -1331,17 +1335,17 @@ async def create_collection(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f'Nieprawidłowy format JSON: {str(e)}'
         )
+    except HTTPException as e:
+        raise e
     except ValidationError as e:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f'Błąd walidacji: {str(e)}'
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=format_validation_error(e)
         )
-    except HTTPException as e:
-            e
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Wystąpił nieoczekiwany błąd: {str(e)}"
+            detail="Wystąpił nieoczekiwany błąd."
         )
         
 @router.get('/collections/me', status_code=status.HTTP_200_OK)
@@ -1380,7 +1384,7 @@ def get_collections_by_user_id(user_id: int, authenticated_user_id: Annotated[in
 
 @router.get('/collections/article/logged/{article_id}', status_code=status.HTTP_200_OK)
 def get_collections_by_article_id(article_id: int, authenticated_user_id: Annotated[int, Depends(authenticate)], db: Annotated[Session, Depends(get_db)]) -> Page[schemas.Collection]:
-    db_collections = service.get_collections_by_user_id(db=db, user_id=user_id)
+    db_collections = service.get_collections_by_article_id(db=db, article_id=article_id)
     
     for collection in db_collections:
         total_price = 0
@@ -1395,6 +1399,32 @@ def get_collections_by_article_id(article_id: int, authenticated_user_id: Annota
         collection.price = new_price
     
     return paginate(db_collections)
+
+@router.get('/collection/detail/{collection_id}')
+def get_collection_detail_by_id(collection_id: int, db: Annotated[Session, Depends(get_db)], access_token: Union[str, None] = Cookie(None)) -> schemas.CollectionDetail:
+    db_collection = service.get_collection_by_id(db=db, collection_id=collection_id)
+    
+    if not db_collection:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Nie znaleziono paczki."
+        )
+        
+    if access_token:
+        user_id = get_user_id_by_access_token(access_token)
+        
+        for article in db_collection.articles:
+            article.is_bought = service.has_user_purchased_article(db=db, user_id=user_id, article_id=article.id)
+            total_price = 0
+        
+            if not service.has_user_purchased_article(db=db, user_id=user_id, article_id=article.id):
+                total_price += article.price
+            discount = (db_collection.discount_percentage / 100) * total_price
+            new_price = total_price - discount
+        
+        db_collection.price = new_price
+            
+    return db_collection
 
 @router.patch(
     '/collection/{collection_id}',
@@ -1420,8 +1450,8 @@ def get_collections_by_article_id(article_id: int, authenticated_user_id: Annota
             ]
         ),
         CreateExampleResponse(
-            code=status.HTTP_403_FORBIDDEN,
-            description="Forbidden",
+            code=status.HTTP_401_UNAUTHORIZED,
+            description="Unauthorized",
             content_type='application/json',
             examples=[
                 Example(
@@ -1512,7 +1542,7 @@ async def edit_partial_collection_by_id(
                     )
                 if article.author_id != user_id:
                     raise HTTPException(
-                        status_code=status.HTTP_403_FORBIDDEN,
+                        status_code=status.HTTP_401_UNAUTHORIZED,
                         detail=f"Nie możesz dodać do swojej paczki artykułu, który nie jest Twojego autorstwa."
                     )
                     
@@ -1522,31 +1552,48 @@ async def edit_partial_collection_by_id(
     db_collection = service.partial_update_collection(db=db, db_collection=db_collection, update_collection=collection)
     return db_collection
 
-@router.get('/collection/detail/{collection_id}')
-def get_collection_detail_by_id(collection_id: int, db: Annotated[Session, Depends(get_db)], access_token: Union[str, None] = Cookie(None)) -> schemas.CollectionDetail:
-    db_collection = service.get_collection_by_id(db=db, collection_id=collection_id)
+@router.delete(
+    '/collection/all/me',
+    status_code=status.HTTP_200_OK,
+    responses=Responses(
+        CreateExampleResponse(
+            code=status.HTTP_404_NOT_FOUND,
+            description="Not Found",
+            content_type='application/json',
+            examples=[
+                Example(
+                    name="CollectionsNotFound",
+                    summary="Collections not found",
+                    description="No collections found for the user.",
+                    value=DefaultErrorModel(detail="Nie znaleziono paczek użytkownika do usunięcia.")
+                )
+            ]
+        ),
+        CreateExampleResponse(
+            code=status.HTTP_200_OK,
+            description="OK",
+            content_type='application/json',
+            examples=[
+                Example(
+                    name="CollectionsDeleted",
+                    summary="Collections deleted",
+                    description="All collections for the user were successfully deleted.",
+                    value=DefaultErrorModel(detail="Wszystkie paczki użytkownika zostały pomyślnie usunięte.")
+                )
+            ]
+        )
+    )
+)
+def delete_user_all_collections(user_id: Annotated[int, Depends(authenticate)], db: Annotated[Session, Depends(get_db)]) -> bool:
+    db_collections = service.get_collections_by_user_id(db=db, user_id=user_id)
     
-    if not db_collection:
+    if not db_collections:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Nie znaleziono paczki."
+            detail="Nie znaleziono paczek użytkownika do usunięcia."
         )
-        
-    if access_token:
-        user_id = get_user_id_by_access_token(access_token)
-        
-        for article in db_collection.articles:
-            article.is_bought = service.has_user_purchased_article(db=db, user_id=user_id, article_id=article.id)
-            total_price = 0
-        
-            if not service.has_user_purchased_article(db=db, user_id=user_id, article_id=article.id):
-                total_price += article.price
-            discount = (db_collection.discount_percentage / 100) * total_price
-            new_price = total_price - discount
-        
-        db_collection.price = new_price
-            
-    return db_collection
+
+    return all([service.delete_collection(db=db, db_collection=db_collection) for db_collection in db_collections])
 
 @router.delete(
     '/collection/{collection_id}',
@@ -1609,49 +1656,6 @@ def delete_collection_by_id(collection_id: int, user_id: Annotated[int, Depends(
         )
         
     return service.delete_collection(db=db, db_collection=db_collection)
-
-@router.delete(
-    '/collection/all/me',
-    status_code=status.HTTP_200_OK,
-    responses=Responses(
-        CreateExampleResponse(
-            code=status.HTTP_404_NOT_FOUND,
-            description="Not Found",
-            content_type='application/json',
-            examples=[
-                Example(
-                    name="CollectionsNotFound",
-                    summary="Collections not found",
-                    description="No collections found for the user.",
-                    value=DefaultErrorModel(detail="Nie znaleziono paczek użytkownika do usunięcia.")
-                )
-            ]
-        ),
-        CreateExampleResponse(
-            code=status.HTTP_200_OK,
-            description="OK",
-            content_type='application/json',
-            examples=[
-                Example(
-                    name="CollectionsDeleted",
-                    summary="Collections deleted",
-                    description="All collections for the user were successfully deleted.",
-                    value=DefaultErrorModel(detail="Wszystkie paczki użytkownika zostały pomyślnie usunięte.")
-                )
-            ]
-        )
-    )
-)
-def delete_user_all_collections(user_id: Annotated[int, Depends(authenticate)], db: Annotated[Session, Depends(get_db)]) -> bool:
-    db_collections = service.get_collections_by_user_id(db=db, user_id=user_id)
-    
-    if not db_collections:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Nie znaleziono paczek użytkownika do usunięcia."
-        )
-
-    return all([service.delete_collection(db=db, db_collection=db_collection) for db_collection in db_collections])
 
 @router.post(
     '/collection/buy/{collection_id}',

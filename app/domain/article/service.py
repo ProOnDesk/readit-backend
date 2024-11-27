@@ -267,7 +267,16 @@ def partial_update_collection(db: Session, db_collection: models.Collection, upd
         update_collection = collection.model_dump(exclude_unset=True)
 
     for field, value in update_collection.items():
-        setattr(db_collection, field, value)
+        
+        if field == 'articles_id':
+            articles = []
+            
+            for article_id in value:
+                articles.append(get_article_by_id(db, article_id))
+            
+            setattr(db_collection, 'articles', articles)
+        else:
+            setattr(db_collection, field, value)
      
     db.commit()
     db.refresh(db_collection)

@@ -1,21 +1,25 @@
 import pytest
 from sqlalchemy.orm import Session
 from fastapi.testclient import TestClient
-from app.domain.article.models import Article, ArticleComment, WishList
+from app.domain.article.models import Article, ArticleComment, WishList, Collection
 from app.domain.user.models import User
 from app.domain.user.service import hash_password
 import os
 import json
 import random
 import faker
+from typing import List, Final
+
+DEFAULT_IMAGE_PATH: Final[str] = os.path.join(
+    os.getcwd(), "app", "media", "uploads", "user", "default_article_title_img.jpg"
+)
 
 @pytest.fixture
 def add_example_article(
     session: Session,
     create_user: User,
 ) -> None:
-
-    article = {
+    article_data = {
         "title": "title",
         "summary": "string",
         "is_free": True,
@@ -24,13 +28,14 @@ def add_example_article(
         "title_image": 'default_image.jpg'
     }
     
-    article = Article(**article)
+    article = Article(**article_data)
+    
     session.add(article)
     session.commit()
     session.refresh(article)
     
 def create_test_article(session: Session, user_id: int) -> Article:
-    article = {
+    article_data = {
         "title": "test",
         "summary": "string",
         "is_free": True,
@@ -39,7 +44,8 @@ def create_test_article(session: Session, user_id: int) -> Article:
         "title_image": 'default_image.jpg'
     }
     
-    article = Article(**article)
+    article = Article(**article_data)
+    
     session.add(article)
     session.commit()
     session.refresh(article)
@@ -49,8 +55,8 @@ def create_test_article(session: Session, user_id: int) -> Article:
 def create_test_user(session: Session) -> User:
     
     email_test = 'test@test.pl'
-    
     count = 0
+    
     while True:
         if not session.query(User).filter_by(email=email_test).first():
             break
@@ -90,7 +96,7 @@ def create_test_comment(session: Session, article_id: int, user_id: int) -> Arti
     return comment
 
 def create_test_wish_list(session: Session, article_id: int, user_id: int) -> WishList:
-    wish_list = WishList(article_id=article, user_id=user_id)
+    wish_list = WishList(article_id=article_id, user_id=user_id)
     
     session.add(wish_list)
     session.commit()
@@ -98,3 +104,20 @@ def create_test_wish_list(session: Session, article_id: int, user_id: int) -> Wi
     
     return wish_list
     
+def create_test_collection(session: Session, articles: List[Article], owner_id: int) -> Collection:
+    collection_data = {
+        'title': 'title',
+        'discount_percentage': 10,
+        'short_description': 'short',
+        'articles': articles,
+        'owner_id': owner_id,
+        'collection_image': 'media/uploads/user/default_article_img.jpg'
+    }
+    
+    collection = Collection(**collection_data)
+    
+    session.add(collection)
+    session.commit()
+    session.refresh(collection)
+    
+    return collection
