@@ -1,4 +1,4 @@
-from ..conftest import authorized_client
+from app.tests.conftest import authorized_client
 from fastapi.testclient import TestClient
 from fastapi import status
 from sqlalchemy.orm import Session
@@ -9,7 +9,7 @@ from typing import List
 from app.domain.article.service import add_purchased_article
 from app.dependencies import get_user_id_by_access_token
 from app.domain.article.models import Article
-from ..utils import (
+from app.tests.utils import (
     create_test_article,
     create_test_user,
     create_test_comment,
@@ -939,3 +939,37 @@ def test_articles_collection_delete(
     res = authorized_client.delete(f'/articles/collection/{collection_id}')
     
     assert res.status_code == expected_code
+
+@pytest.mark.parametrize(
+    'collection_id, is_owner, expected_code',
+    [
+        ('1', False, status.HTTP_200_OK),
+        ('1' , True, status.HTTP_403_FORBIDDEN),
+        ('2', False, status.HTTP_404_NOT_FOUND),
+        ('2', True, status.HTTP_404_NOT_FOUND),
+        ('wrong', False, status.HTTP_422_UNPROCESSABLE_ENTITY),
+        ('wrong', True, status.HTTP_422_UNPROCESSABLE_ENTITY)
+    ]
+)
+def test_articles_collection_post_buy_by_collection_id(
+    authorized_client: TestClient,
+    session: Session,
+    collection_id: str,
+    is_owner: bool,
+    expected_code: int
+):
+    if is_owner:
+        user_id = get_user_id_by_access_token(authorized_client.cookies.get('access_token'))
+    else:
+        user_id = create_test_user(session).id
+    
+    articles = []
+    for _ in range(2):
+        articles.append(create_test_article(session, user_id))
+
+    create_test_collection(session, articles, user_id)
+    
+    res = authorized_client.post(f'/articles/collection/buy/{collection_id}')
+    
+    assert res.status_code == expected_code
+    

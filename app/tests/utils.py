@@ -2,6 +2,7 @@ import pytest
 from sqlalchemy.orm import Session
 from fastapi.testclient import TestClient
 from app.domain.article.models import Article, ArticleComment, WishList, Collection
+from app.domain.support.models import Issue
 from app.domain.user.models import User
 from app.domain.user.service import hash_password
 import os
@@ -53,7 +54,6 @@ def create_test_article(session: Session, user_id: int) -> Article:
     return article
     
 def create_test_user(session: Session) -> User:
-    
     email_test = 'test@test.pl'
     count = 0
     
@@ -121,3 +121,19 @@ def create_test_collection(session: Session, articles: List[Article], owner_id: 
     session.refresh(collection)
     
     return collection
+
+def create_test_issue(session: Session, user_id: int) -> Issue:
+    issue_data = {
+        'category': 'Naruszenie regulaminu',
+        'title': 'title',
+        'description': 'description',
+        'status': 'Nowe'
+    }
+    
+    issue = Issue(reported_by_id=user_id, **issue_data)
+    
+    session.add(issue)
+    session.commit()
+    session.refresh(issue)
+    
+    return issue
