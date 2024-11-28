@@ -11,7 +11,9 @@ class Issue(Base):
     title = Column(String(255), nullable=False)
     description = Column(Text, nullable=False)
     status = Column(String(25), nullable=False)
-
-    reported_by_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    created_at = Column(DateTime, server_default=func.timezone('UTC', func.now()))
+    updated_at = Column(DateTime, server_default=func.timezone('UTC', func.now()), onupdate=func.timezone('UTC', func.now()))
     
+    reported_by_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
     reported_by = relationship('User', back_populates='support_issues')
+    
