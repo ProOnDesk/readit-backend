@@ -2,7 +2,7 @@ from typing import Annotated, Literal, Optional
 from fastapi import APIRouter, Depends, Response, Form, HTTPException, Path, Body, Query, status, File, UploadFile
 from sqlalchemy.orm import Session
 from app.dependencies import send_email, get_db, DefaultResponseModel, authenticate, Responses, Example, CreateExampleResponse, CreateAuthResponses
-from app.config import SECRET_KEY, ENCRYPTION_ALGORITHM, IP_ADDRESS, IMAGE_DIR, IMAGE_URL
+from app.config import SECRET_KEY, ENCRYPTION_ALGORITHM, IP_ADDRESS, IMAGE_DIR, IMAGE_URL, FRONTEND_URL
 from app.domain.user.service import ( create_user, hash_password, 
     get_user_by_email, get_user, create_follow, get_user_skills,
     get_follow_by_both_ids, delete_follow, get_follows_amount, verify_password,
@@ -66,10 +66,10 @@ async def register_user(
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Wystąpił błąd poczas rejestrowania: błąd tworzenie użytkownika")
 
     await send_email(
-        'Potwierdź konto',
+        'Potwierdź konto.',
         body.email,
         {
-            'link': f"http://127.0.0.1:3000/email-confirmation/?key={jwt.encode({'email': body.email}, SECRET_KEY, algorithm=ENCRYPTION_ALGORITHM)}"
+            'link': f"{FRONTEND_URL}/email-confirmation/?key={jwt.encode({'email': body.email}, SECRET_KEY, algorithm=ENCRYPTION_ALGORITHM)}"
         }, 
         'email_confirmation.html'
     )
@@ -109,10 +109,10 @@ async def send_email_with_key_to_change_password(
         raise HTTPException(status_code=404, detail='Użytkownik nie istnieje')
     
     await send_email(
-        'Password reset.',
+        'Restartowanie hasła.',
         body.email,
         {
-            'link': f"http://127.0.0.1:3000/password-reset/?key={jwt.encode({'email': body.email, 'hashed_password': user.hashed_password}, SECRET_KEY, algorithm=ENCRYPTION_ALGORITHM)}"
+            'link': f"{FRONTEND_URL}/password-reset/?key={jwt.encode({'email': body.email, 'hashed_password': user.hashed_password}, SECRET_KEY, algorithm=ENCRYPTION_ALGORITHM)}"
         }, 
         'password_reset.html'
     )

@@ -7,7 +7,7 @@ from fastapi.security.utils import get_authorization_scheme_param
 from fastapi_mail import FastMail, MessageSchema, ConnectionConfig
 from sqlalchemy.orm import Session
 from app.database import SessionLocal
-from app.config import ACCESS_TOKEN_EXPIRE_TIME, SECRET_KEY, ENCRYPTION_ALGORITHM, REFRESH_TOKEN_EXPIRE_TIME
+from app.config import ACCESS_TOKEN_EXPIRE_TIME, SECRET_KEY, ENCRYPTION_ALGORITHM, REFRESH_TOKEN_EXPIRE_TIME, IP_ADDRESS, FRONTEND_URL
 from uuid import uuid4
 from pydantic import BaseModel, ValidationError
 from app.domain.user.service import get_user_by_email_and_password, get_user
@@ -552,7 +552,7 @@ async def send_email(
 
     with open(f'app/templates/email/{template}') as file_:
         template = Template(file_.read())
-        rendered_template = template.render(link=body.get('link'))
+        rendered_template = template.render(link=body.get('link'), icon_link=f'{IP_ADDRESS}static/img/ReadIt-logo.png', frontend_url=FRONTEND_URL)
     
     message = MessageSchema(
         subject=subject,

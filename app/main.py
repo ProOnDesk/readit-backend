@@ -137,6 +137,7 @@ app = get_application()
 admin = create_admin(app)
 
 app.mount("/media/uploads/user", staticfiles.StaticFiles(directory="app/media/uploads/user"), name="user_uploads")
+app.mount("/static/", staticfiles.StaticFiles(directory="app/static"), name="static")
 
 @app.middleware("http")
 async def db_session_middleware(request: Request, call_next):

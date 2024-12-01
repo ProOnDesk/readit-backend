@@ -2,7 +2,7 @@ import os
 
 DATABASE_URL = os.environ.get("DATABASE_URL")
 CORS_ORIGINS = [
-    "http://localhost:3000",
+    FRONTEND_URL,
 ]
 
 IP_ADDRESS = "http://127.0.0.1:8000/"
