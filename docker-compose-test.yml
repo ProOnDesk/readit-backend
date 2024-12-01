@@ -1,0 +1,43 @@
+version: "3.8"
+
+services:
+  # Service for running tests
+  web_test:
+    build: .
+    ports:
+      - "8005:8005"
+    depends_on:
+      - db_test
+    environment:
+      - DATABASE_URL=postgresql://postgres:password@db_test:5434/test
+      - TESTING=1
+
+    volumes:
+      - ./app:/app/app
+    command: >
+      sh -c "pytest -v --tb=long -s --disable-warnings -k test_user"
+    env_file:
+      - ./.env
+    networks:
+      - test_network
+
+  db_test:
+    image: postgres:13
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: test
+      POSTGRES_PORT: 5434
+    ports:
+      - "5434:5434"
+    volumes:
+      - test_postgres_data:/var/lib/postgresql/data
+    networks:
+      - test_network
+
+volumes:
+  test_postgres_data:
+
+networks:
+  test_network:
+    driver: bridge

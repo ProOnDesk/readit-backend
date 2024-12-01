@@ -12,14 +12,4 @@ class IssueView(ModelView, model=Issue):
 
     ]
     
-    column_searchable_list = [Issue.title, Issue.category, Issue.status]
-    
-    form_columns = [
-        'category',
-        'title',
-        'description',
-        'status',
-        'reported_by_id' 
-    ]
-    
     

@@ -30,7 +30,7 @@ def seed_data(
     article_amount: int = Query(20, ge=1, le=100, description="Must be between 1 and 100"),
     db: Session = Depends(get_db)
 ):
-    fake = Faker()  # Initialize Faker instance
+    fake = Faker()  
     try:
         # Add sample users
         users = [
