@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from fastapi.testclient import TestClient
 from app.domain.article.models import Article, ArticleComment, WishList, Collection
 from app.domain.support.models import Issue
-from app.domain.user.models import User
+from app.domain.user.models import User, Skill, SkillList, Follower
 from app.domain.user.service import hash_password
 import os
 import json
@@ -81,6 +81,24 @@ def create_test_user(session: Session) -> User:
     
     return user 
 
+def create_test_unactive_user(session: Session) -> User:
+    user_data = {
+        'email': 'test@test.pl',
+        'hashed_password': hash_password('PasswordExample'),
+        'first_name': 'adam',
+        'last_name': 'adam',
+        'sex': 'adam',
+        'is_active': False
+    }
+    
+    user = User(**user_data)
+    
+    session.add(user)
+    session.commit()
+    session.refresh(user)
+    
+    return user
+
 def create_test_comment(session: Session, article_id: int, user_id: int) -> ArticleComment:
     comment_data = {
        'content': 'test test test',
@@ -137,3 +155,30 @@ def create_test_issue(session: Session, user_id: int) -> Issue:
     session.refresh(issue)
     
     return issue
+
+def create_test_skill(session: Session, skill_name: str) -> Skill:
+    skill = Skill(skill_name=skill_name)
+    
+    session.add(skill)
+    session.commit()
+    session.refresh(skill)
+    
+    return skill
+
+def create_test_skill_list(session: Session, user_id: int, skill: Skill) -> SkillList:
+    skill_list = SkillList(user_id=user_id, skill=skill)
+    
+    session.add(skill_list)
+    session.commit()
+    session.refresh(skill_list)
+    
+    return skill_list
+
+def create_test_follower(session: Session, following_id: int, followed_id: int) -> Follower:
+    follower = Follower(follower_id=following_id, followed_id=followed_id)
+    
+    session.add(follower)
+    session.commit()
+    session.refresh(follower)
+    
+    return follower

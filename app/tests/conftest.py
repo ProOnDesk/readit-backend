@@ -79,7 +79,8 @@ def create_tokens(create_user: User, session: Session):
     access_token = create_token({
         'user_id': create_user.id,
         'expiration_date': (datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(minutes=ACCESS_TOKEN_EXPIRE_TIME)).isoformat(),
-        'type': 'access'
+        'type': 'access',
+        'email': create_user.email
     })
     refresh_token = create_token({
         'user_id': create_user.id,

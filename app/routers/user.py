@@ -304,7 +304,6 @@ class PasswordChangeModel(BaseModel):
     new_password: str
 
 class ModifyUserModel(BaseModel):
-    email: str | None = None
     sex: str | None = None
     description: str | None = None
     short_description: str | None = None
@@ -323,9 +322,6 @@ async def modify_user(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail='Użytkownik nie istnieje'
         )
-    
-    if changes.email:
-        user.email = changes.email
     
     if changes.sex:
         user.sex = changes.sex

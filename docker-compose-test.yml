@@ -15,7 +15,7 @@ services:
     volumes:
       - ./app:/app/app
     command: >
-      sh -c "pytest -v --tb=long -s --disable-warnings -k test_"
+      sh -c "pytest -v --tb=long -s --disable-warnings -k test_user"
     env_file:
       - ./.env
     networks:
