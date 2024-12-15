@@ -131,7 +131,7 @@ def get_application() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
-    fapp.add_middleware(httpsredirect)
+    fapp.add_middleware(HTTPSRedirectMiddleware)
     fapp.add_middleware(AddXFrameOptionsMiddleware)
     fapp.add_middleware(RemoveServerHeaderMiddleware)
     
