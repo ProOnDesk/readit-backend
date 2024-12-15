@@ -261,7 +261,7 @@ async def get_for_edit_article_by_slug(
 @router.get(
     '/for-edit/id/{article_id}',
     status_code=status.HTTP_200_OK,
-responses=Responses(
+    responses=Responses(
         CreateExampleResponse(
             code=status.HTTP_401_UNAUTHORIZED,
             description='Unauthorized',
@@ -290,9 +290,10 @@ responses=Responses(
         )
     )
 )
-async def get_for_edit_article_by_id(article_id: int,
-                                     user_id: Annotated[int, Depends(authenticate)],
-                                     db: Annotated[Session, Depends(get_db)]
+async def get_for_edit_article_by_id(
+    article_id: int,
+    user_id: Annotated[int, Depends(authenticate)],
+    db: Annotated[Session, Depends(get_db)]
 ) -> schemas.ResponseUpdateArticle:
     db_article = service.get_article_by_id(db=db, article_id=article_id)
     
@@ -1151,7 +1152,7 @@ async def delete_article_from_wish_list(article_id: int, user_id: Annotated[int,
                     name="UnexpectedError",
                     summary="Unexpected error",
                     description="An unexpected error occurred.",
-                    value=DefaultErrorModel(detail="An unexpected error occurred: {str(e)}")
+                    value=DefaultErrorModel(detail="Wystąpił nieoczekiwany błąd.")
                 )
             ]
         )
@@ -1187,7 +1188,7 @@ async def buy_article_by_id(article_id: int, user_id: Annotated[int, Depends(aut
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, 
-            detail=f"An unexpected error occurred: {str(e)}"
+            detail="Wystąpił nieoczekiwany błąd."
         )
         
 @router.get('/bought-list', status_code=status.HTTP_200_OK,)
@@ -1357,11 +1358,13 @@ def get_collections_for_me(user_id: Annotated[int, Depends(authenticate)], db: A
 @router.get('/collections/user/{user_id}', status_code=status.HTTP_200_OK)
 def get_collections_by_user_id(user_id: int, db: Annotated[Session, Depends(get_db)]) -> Page[schemas.Collection]:
     db_collections = service.get_collections_by_user_id(db=db, user_id=user_id)
+    
     return paginate(db_collections)
 
 @router.get('/collections/article/{article_id}', status_code=status.HTTP_200_OK)
 def get_collections_by_article_id(article_id: int, db: Annotated[Session, Depends(get_db)]) -> Page[schemas.Collection]:
     db_collections = service.get_collections_by_article_id(db=db, article_id=article_id)
+    
     return paginate(db_collections)
 
 @router.get('/collections/user/logged/{user_id}', status_code=status.HTTP_200_OK)
@@ -1415,11 +1418,14 @@ def get_collection_detail_by_id(collection_id: int, db: Annotated[Session, Depen
         
         for article in db_collection.articles:
             article.is_bought = service.has_user_purchased_article(db=db, user_id=user_id, article_id=article.id)
+            
             total_price = 0
         
             if not service.has_user_purchased_article(db=db, user_id=user_id, article_id=article.id):
                 total_price += article.price
+                
             discount = (db_collection.discount_percentage / 100) * total_price
+            
             new_price = total_price - discount
         
         db_collection.price = new_price
@@ -1547,6 +1553,7 @@ async def edit_partial_collection_by_id(
                     )
                     
                 articles.append(article)
+                
             collection['articles'] = articles
         
     db_collection = service.partial_update_collection(db=db, db_collection=db_collection, update_collection=collection)

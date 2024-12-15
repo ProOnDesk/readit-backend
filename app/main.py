@@ -1,9 +1,12 @@
 from fastapi import FastAPI, Request, Response, staticfiles
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.httpsredirect import HTTPSRedirectMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware
+
 from pydantic import BaseModel
 from app.database import engine, SessionLocal
-from app.config import CORS_ORIGINS, SECRET_KEY, ENCRYPTION_ALGORITHM
+from app.config import CORS_ORIGINS, SECRET_KEY, ENCRYPTION_ALGORITHM, IS_PRODUCTION
 from app.domain.model_base import Base
 from app.routers import oauth2, user, article, develop, router, support
 from app.internal.admin import create_admin
@@ -16,7 +19,20 @@ from alembic import command
 import logging
 import os
 
-# Set up logging
+class AddXFrameOptionsMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request, call_next):
+        response = await call_next(request)
+        response.headers["X-Frame-Options"] = "DENY"
+        return response
+    
+    
+class RemoveServerHeaderMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request, call_next):
+        response = await call_next(request)
+        if "server" in response.headers:
+            del response.headers["server"]
+        return response
+    
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("alembic.auto_migrate")
 
@@ -115,19 +131,23 @@ def get_application() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+    fapp.add_middleware(httpsredirect)
+    fapp.add_middleware(AddXFrameOptionsMiddleware)
+    fapp.add_middleware(RemoveServerHeaderMiddleware)
+    
     disable_installed_extensions_check()
-
 
     fapp.include_router(router)
     fapp.include_router(oauth2.router)
     fapp.include_router(user.router)
     fapp.include_router(article.router)
     fapp.include_router(support.router)
-    fapp.include_router(develop.router)
+    
+    if not IS_PRODUCTION:
+        fapp.include_router(develop.router)
     
     add_pagination(fapp)
 
-    
     return fapp
 
 

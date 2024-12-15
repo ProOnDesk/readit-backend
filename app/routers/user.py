@@ -688,6 +688,7 @@ async def get_followers_following_me(user_id: Annotated[int, Depends(authenticat
 )
 async def get_followers_followed_by_me(user_id: Annotated[int, Depends(authenticate)], db: Session = Depends(get_db)) -> Page[UserPublic]:
     db_followers =  get_following_by_user_id(db=db, user_id=user_id)
+    
     return paginate(db_followers) 
     
 @router.get('/search', status_code=status.HTTP_200_OK)
