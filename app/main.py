@@ -131,9 +131,10 @@ def get_application() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
-    fapp.add_middleware(HTTPSRedirectMiddleware)
-    fapp.add_middleware(AddXFrameOptionsMiddleware)
-    fapp.add_middleware(RemoveServerHeaderMiddleware)
+    if IS_PRODUCTION:
+        fapp.add_middleware(HTTPSRedirectMiddleware)
+        fapp.add_middleware(AddXFrameOptionsMiddleware)
+        fapp.add_middleware(RemoveServerHeaderMiddleware)
     
     disable_installed_extensions_check()
 
