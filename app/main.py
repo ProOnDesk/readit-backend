@@ -132,6 +132,7 @@ def get_application() -> FastAPI:
         allow_headers=["*"],
     )
     if IS_PRODUCTION:
+        
         fapp.add_middleware(HTTPSRedirectMiddleware)
         fapp.add_middleware(AddXFrameOptionsMiddleware)
         fapp.add_middleware(RemoveServerHeaderMiddleware)

@@ -23,8 +23,8 @@ async def login_for_access_token(
 ):
     secure_cookie = True if IS_PRODUCTION else False  
         
-    response.set_cookie(key="access_token", value=f'{tokens.access_token}', max_age=ACCESS_TOKEN_EXPIRE_TIME * 60, httponly=True, samesite="none", secure=secure_cookie)
-    response.set_cookie(key="refresh_token", value=f'{tokens.refresh_token}', max_age=REFRESH_TOKEN_EXPIRE_TIME * 60 * 24 * 60, httponly=True, samesite="none", secure=secure_cookie)
+    response.set_cookie(key="access_token", value=f'{tokens.access_token}', max_age=ACCESS_TOKEN_EXPIRE_TIME * 60, httponly=True, samesite="none", secure=True)
+    response.set_cookie(key="refresh_token", value=f'{tokens.refresh_token}', max_age=REFRESH_TOKEN_EXPIRE_TIME * 60 * 24 * 60, httponly=True, samesite="none", secure=True)
 
     return {
         "message": "Authenticated"
@@ -55,7 +55,7 @@ async def refresh_for_access_token(
         )}""",
         max_age=ACCESS_TOKEN_EXPIRE_TIME*60, 
         httponly=True,
-        secure=secure_cookie
+        secure=True
     )
 
     return {
