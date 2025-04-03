@@ -149,6 +149,18 @@ def add_purchased_article(db: Session, user_id: int, article_id: int) -> None:
     db.add(purchase)
     db.commit()
 
+def add_purchased_article_event(db: Session, user_id: int, article_id: int) -> None:
+    # Check if the purchase already exists
+    exists_query = db.query(models.ArticlePurchase).filter_by(
+        user_id=user_id,
+        article_id=article_id
+    ).first()
+
+    if not exists_query:
+        purchase = models.ArticlePurchase(user_id=user_id, article_id=article_id)
+        db.add(purchase)
+
+        
 def has_user_purchased_article(db: Session, user_id: int, article_id: int) -> bool:
     return db.query(models.ArticlePurchase).filter_by(user_id=user_id, article_id=article_id).first() is not None
 

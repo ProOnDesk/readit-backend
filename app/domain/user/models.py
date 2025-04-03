@@ -32,7 +32,9 @@ class User(Base):
     skills = relationship('SkillList', back_populates='user', cascade='all, delete-orphan')
     support_issues = relationship('Issue', back_populates='reported_by', cascade='all, delete-orphan')
     collections = relationship('Collection', back_populates='owner', cascade='all, delete-orphan')
-    
+    transactions = relationship('Transaction', foreign_keys='Transaction.user_id', back_populates='user', lazy=True, cascade="all, delete-orphan")
+
+
     @property 
     def skill_list(self):
         from .service import get_user_skills

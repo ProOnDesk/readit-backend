@@ -72,6 +72,7 @@ class Article(Base):
     content_elements = relationship('ArticleContentElement', back_populates='article', cascade='all, delete-orphan')
     purchased_by = relationship('ArticlePurchase', back_populates='article', cascade='all, delete-orphan')
     collections = relationship('Collection', secondary='collection_articles', back_populates='articles')
+    transaction_items = relationship("TransactionItem", back_populates="article", cascade="all, delete-orphan")
 
         
     def __repr__(self):
