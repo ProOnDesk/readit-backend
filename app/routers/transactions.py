@@ -255,6 +255,10 @@ async def create_order(
             detail=f"PayU Error: {e.response.text}"
         )
     
+
+class StatusResponse(BaseModel):
+    status: str = "PENDING"
+
 @router.get(
     "/get-order-status/{order_id}"
 )
@@ -262,7 +266,7 @@ async def get_order_status(
     order_id: str,
     user_id: Annotated[int, Depends(authenticate)],
     db: Session = Depends(get_db)
-):
+) -> StatusResponse:
     if not (user := get_user(db, user_id)):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
