@@ -11,6 +11,7 @@ class TransactionItem(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     transaction_id = Column(String(255), ForeignKey("transactions.id"), nullable=False)
     article_id = Column(Integer, ForeignKey("articles.id"), nullable=False)
+    paid_out = Column(Boolean, nullable=False, default=False)
 
     transaction = relationship("Transaction", foreign_keys=[transaction_id], back_populates="items")
     article = relationship("Article", foreign_keys=[article_id], back_populates="transaction_items")
@@ -25,8 +26,7 @@ class Transaction(Base):
     status = Column(String(255), nullable=False)
     created_at = Column(DateTime(timezone=True), nullable=False, default=func.now())
     payu_order_id = Column(String(255), nullable=True)
-    paid_out = Column(Boolean, nullable=False, default=False)
-
+    
     user = relationship("User", foreign_keys=[user_id], back_populates="transactions")
     items = relationship("TransactionItem", back_populates="transaction", cascade="all, delete-orphan")
 
@@ -44,6 +44,9 @@ def track_status_changes(session, flush_context, instances):
             hist = attributes.get_history(obj, "status", passive=True)
             if hist.has_changes() and obj.status == "COMPLETED":
                 setattr(obj, "_status_changed_to_completed", True)
+    for obj in session.new:
+        if isinstance(obj, Transaction) and obj.status == "COMPLETED":
+            setattr(obj, "_status_changed_to_completed", True)
 
 @event.listens_for(Session, "after_flush_postexec")
 def after_status_completed(session, flush_context):

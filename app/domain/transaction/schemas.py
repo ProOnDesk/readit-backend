@@ -13,14 +13,20 @@ class TransactionCreate(TransactionBase):
 
 class Transaction(TransactionBase):
     id: str
-    paid_out: bool
+
+class TransactionGet(BaseModel):
+    status: str
+    created_at: datetime
+    id: str
+    total_price: float
 
 class TransactionItemBase(BaseModel):
     transaction_id: str
     article_id: int
 
 class TransactionItemCreate(TransactionItemBase):
-    pass
+    paid_out: bool = False
 
 class TransactionItemBase(TransactionItemBase):
     id: int
+    paid_out: bool

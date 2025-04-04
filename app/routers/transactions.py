@@ -7,8 +7,8 @@ from app.domain.support import service, schemas, models
 from app.dependencies import get_db, authenticate, DefaultErrorModel, DefaultResponseModel, Responses, CreateExampleResponse, Example
 from typing import Annotated, Union, Literal, Optional
 from pydantic import BaseModel, EmailStr
-from app.domain.transaction.schemas import TransactionCreate, TransactionItemCreate
-from app.domain.transaction.service import create_transaction, create_transaction_item, get_transaction
+from app.domain.transaction.schemas import Transaction, TransactionCreate, TransactionItemCreate
+from app.domain.transaction.service import create_transaction, create_transaction_item, get_transaction, get_transaction_items_by_transaction_id, get_user_transactions_service
 import os
 import httpx
 import uuid
@@ -234,11 +234,9 @@ async def create_order(
         for article in articles:
             create_transaction_item(db, TransactionItemCreate(
                 transaction_id=transaction.id,
-                article_id=article.id
+                article_id=article.id,
+                paid_out=True if article.is_free else False
             ))
-
-        if total_price == 0:
-            transaction.paid_out = True
 
         db.commit()
 
@@ -260,7 +258,7 @@ class StatusResponse(BaseModel):
     status: str = "PENDING"
 
 @router.get(
-    "/get-order-status/{order_id}"
+    "/order-status/{order_id}"
 )
 async def get_order_status(
     order_id: str,
@@ -280,3 +278,56 @@ async def get_order_status(
         )
     
     return {"status": order.status}
+
+
+class TransactionItemSummary(BaseModel):
+    id: int
+    title: str
+    price: float
+
+
+class UserTransaction(BaseModel):
+    id: str
+    status: str
+    created_at: datetime.datetime
+    total_price: float
+    items: list[TransactionItemSummary]
+
+@router.get(
+    "/user-transactions",
+    response_model=Page[UserTransaction],
+)
+async def get_user_transactions(
+    user_id: Annotated[int, Depends(authenticate)],
+    db: Session = Depends(get_db)
+) -> Page[UserTransaction]:
+
+    if not (user := get_user(db, user_id)):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail='Użytkownik nie istnieje'
+        )
+
+    transactions = get_user_transactions_service(db, user_id)
+
+    output = []
+    for transaction in transactions:
+        t_items = get_transaction_items_by_transaction_id(db, transaction.id)
+        items = []
+        for item in t_items:
+            article = item.article
+            items.append(TransactionItemSummary(
+                id=item.id,
+                title=article.title,
+                price=article.price
+            ))
+
+        output.append(UserTransaction(
+            id=transaction.id,
+            status=transaction.status,
+            created_at=transaction.created_at,
+            total_price=transaction.total_price,
+            items=items
+        ))
+
+    return paginate(output)
