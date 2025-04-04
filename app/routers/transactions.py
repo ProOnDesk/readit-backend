@@ -148,7 +148,8 @@ async def payment_notify(
 
 @router.post(
     "/create-test-order", 
-    summary="Create test PayU order"
+    summary="Create test PayU order",
+    deprecated=True
 )
 async def create_test_order(
     order: PayUOrderCreate
