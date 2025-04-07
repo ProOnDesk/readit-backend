@@ -227,7 +227,7 @@ async def create_order(
         transaction = create_transaction(db, TransactionCreate(
             id=order_id,
             user_id=user_id,
-            status="PENDING" if total_price > 0 else "COMPLETED",
+            status="WAITING_FOR_PAYMENT" if total_price > 0 else "COMPLETED",
             payu_order_id=result.get("orderId") if total_price > 0 else None,
             created_at=datetime.datetime.now()
         ))
@@ -331,4 +331,4 @@ async def get_user_transactions(
             items=items
         ))
 
-    return paginate(output)
+    return paginate(output[::-1])
