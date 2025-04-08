@@ -188,8 +188,8 @@ class CreateOrderResponse(BaseModel):
 async def create_order(
     items: Annotated[list[int], Body()],
     redirect_url: Annotated[str, Body()],
-    discounted_price: Annotated[float | None, Body()],
     user_id: Annotated[int, Depends(authenticate)],
+    discounted_price: Annotated[float | None, Body()] = None,
     db: Session = Depends(get_db)
 ) -> CreateOrderResponse:
     try:
