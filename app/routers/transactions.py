@@ -55,7 +55,7 @@ async def create_test_payu_order(
         "currencyCode": "PLN",
         "totalAmount": str(amount),
         "extOrderId": order_id,
-        "continueUrl": redirect_url,
+        "continueUrl": redirect_url + order_id,
         "buyer": {
             "extCustomerId": str(user_id),
             "email": buyer_email,
