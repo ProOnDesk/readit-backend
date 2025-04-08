@@ -188,6 +188,7 @@ class CreateOrderResponse(BaseModel):
 async def create_order(
     items: Annotated[list[int], Body()],
     redirect_url: Annotated[str, Body()],
+    discounted_price: Annotated[float | None, Body()],
     user_id: Annotated[int, Depends(authenticate)],
     db: Session = Depends(get_db)
 ) -> CreateOrderResponse:
@@ -218,7 +219,7 @@ async def create_order(
                 } for article in articles],
                 redirect_url=redirect_url,
                 order_id=order_id,
-                total_price=total_price
+                total_price=discounted_price if discounted_price else total_price 
             )
 
             redirect_uri = result.get("redirectUri")
@@ -229,7 +230,8 @@ async def create_order(
             user_id=user_id,
             status="WAITING_FOR_PAYMENT" if total_price > 0 else "COMPLETED",
             payu_order_id=result.get("orderId") if total_price > 0 else None,
-            created_at=datetime.datetime.now()
+            created_at=datetime.datetime.now(),
+            total_price=discounted_price if discounted_price else (float(total_price)/100) 
         ))
 
         for article in articles:

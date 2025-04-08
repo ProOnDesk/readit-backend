@@ -26,16 +26,17 @@ class Transaction(Base):
     status = Column(String(255), nullable=False)
     created_at = Column(DateTime(timezone=True), nullable=False, default=func.now())
     payu_order_id = Column(String(255), nullable=True)
+    total_price = Column(Float, nullable=False, default=0)
     
     user = relationship("User", foreign_keys=[user_id], back_populates="transactions")
     items = relationship("TransactionItem", back_populates="transaction", cascade="all, delete-orphan")
 
-    @property
-    def total_price(self) -> float:
-        price = 0
-        for item in self.items:
-            price += item.article.price
-        return price
+    # @property
+    # def total_price(self) -> float:
+    #     price = 0
+    #     for item in self.items:
+    #         price += item.article.price
+    #     return price
 
 @event.listens_for(Session, "before_flush")
 def track_status_changes(session, flush_context, instances):

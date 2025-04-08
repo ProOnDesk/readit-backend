@@ -7,6 +7,7 @@ class TransactionBase(BaseModel):
     status: str
     payu_order_id: str | None
     created_at: datetime
+    total_price: float
 
 class TransactionCreate(TransactionBase):
     id: str
