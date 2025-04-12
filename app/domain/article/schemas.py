@@ -139,3 +139,7 @@ class Collection(BaseModel):
 class CollectionDetail(Collection):
     articles: List[ResponseArticleWishList]
     
+class AssessmentInformationMail(BaseModel):
+    article_title: str
+    score: int
+    total: int
