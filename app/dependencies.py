@@ -552,7 +552,7 @@ async def send_email(
 
     with open(f'app/templates/email/{template}') as file_:
         template = Template(file_.read())
-        rendered_template = template.render(link=body.get('link'), icon_link=f'{IP_ADDRESS}static/img/ReadIt-logo.png', frontend_url=FRONTEND_URL)
+        rendered_template = template.render(icon_link=f'{IP_ADDRESS}static/img/ReadIt-logo.png', frontend_url=FRONTEND_URL, **body)
     
     message = MessageSchema(
         subject=subject,

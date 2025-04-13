@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status, File, UploadFile, Form, Query, Cookie, Request, exceptions
 from sqlalchemy.orm import Session
 from app.domain.article import schemas, service, models
+from app.domain.user.service import get_user
 from app.dependencies import send_email, get_db, DefaultResponseModel, authenticate, Responses, Example, CreateExampleResponse, CreateAuthResponses, DefaultErrorModel, format_validation_error, get_user_id_by_access_token
 from typing import Annotated, Union, Literal, Optional
 from fastapi_pagination import Page, paginate
@@ -1728,3 +1729,22 @@ def buy_collection_by_id(collection_id: int, user_id: Annotated[int, Depends(aut
             service.add_purchased_article(db=db, user_id=user_id, article_id=article.id)
     
     return {"detail": "Paczka z artykułami została pomyślnie zakupiona."} 
+
+@router.post("/send-assessment-email/", status_code=status.HTTP_201_CREATED)
+async def send_email_with_assessment_information(
+    assessment_information_email: schemas.AssessmentInformationEmail,
+    user_id: Annotated[int, Depends(authenticate)],
+    db: Session = Depends(get_db)
+) -> DefaultResponseModel: 
+    assessment_information_email_dict = assessment_information_email.dict()
+    user = get_user(db=db, user_id=user_id)
+    await send_email(
+        'Wynik testu wiedzy z artykułu.',
+        user.email,
+        assessment_information_email_dict, 
+        'assessment_information.html'
+    )
+    
+    return {
+        "message": "Email wysłany"
+    }

@@ -1,6 +1,6 @@
 from pydantic import BaseModel, Field, root_validator, conint, conset, Field
 from datetime import datetime
-from typing import Annotated, Literal, Union, Optional
+from typing import Annotated, Literal, Union, Optional, List
 
 # USER
 class UserInfo(BaseModel):
@@ -15,6 +15,17 @@ class BaseTag(BaseModel):
 
 class ResponseTag(BaseTag):
     id: int
+
+# ARTICLE ASSESSMENT
+
+class ArticleAssessmentAnswer(BaseModel):
+    answer_text: str
+    is_correct: bool
+    
+class ArticleAssessmentQuestion(BaseModel):
+    question_text: str
+    answers: List[ArticleAssessmentAnswer]
+    
     
 # ARTICLE CONTENT ELELMENT
 
@@ -29,20 +40,22 @@ class ResponseArticleContentElement(BaseArticleContentElement):
 class BaseArticle(BaseModel):
     title: str
     summary: str
-    tags: Optional[list[BaseTag]] = None
+    tags: Optional[List[BaseTag]] = None
     is_free: bool = True
     price: float = 0.0
     
 class CreateArticle(BaseArticle):
-    content_elements: list[BaseArticleContentElement]
+    content_elements: List[BaseArticleContentElement]
+    assessment_questions: List[ArticleAssessmentQuestion]
 
 class UpdatePartialArticle(BaseModel):
     title: str | None
     summary: str | None
-    tags: Optional[list[BaseTag]] | None
+    tags: Optional[List[BaseTag]] | None
     is_free: bool | None
     price: float | None
-    content_elements: list[BaseArticleContentElement] | None
+    content_elements: List[BaseArticleContentElement] | None
+    assessment_questions: List[ArticleAssessmentQuestion] | None
 
 class ResponseUpdateArticle(UpdatePartialArticle):
     title_image_url: str
@@ -72,12 +85,14 @@ class ResponseArticle(BaseArticle):
     title_image_url: str
     rating: float
     rating_count: int
+    questions_count: int | None
 
 class ResponseArticleWishList(ResponseArticle):
     is_bought: bool | None = None
 
 class ResponseArticleDetail(ResponseArticle):
-    content_elements: list[ResponseArticleContentElement]
+    content_elements: List[ResponseArticleContentElement]
+    assessment_questions: List[ArticleAssessmentQuestion]
 
 # WISH LIST
 class BaseWishList(BaseModel):
@@ -120,7 +135,12 @@ class Collection(BaseModel):
     updated_at: datetime
     articles_count: int
     rating: float = 0.0
-    articles_id: list[int]
+    articles_id: List[int]
     
 class CollectionDetail(Collection):
-    articles: list[ResponseArticleWishList]
+    articles: List[ResponseArticleWishList]
+    
+class AssessmentInformationEmail(BaseModel):
+    article_title: str
+    score: int
+    total: int

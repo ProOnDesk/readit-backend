@@ -9,7 +9,7 @@ services:
     depends_on:
       - db_test
     environment:
-      - DATABASE_URL=postgresql://postgres:password@db_test:5434/test
+      - DATABASE_URL=postgresql://postgres:password@db_test:5432/test
       - TESTING=1
 
     volumes:
@@ -27,9 +27,9 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: password
       POSTGRES_DB: test
-      POSTGRES_PORT: 5434
+      POSTGRES_PORT: 5432
     ports:
-      - "5434:5434"
+      - "5432:5432"
     volumes:
       - test_postgres_data:/var/lib/postgresql/data
     networks:
