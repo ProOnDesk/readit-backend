@@ -116,6 +116,14 @@ class Article(Base):
         cascade="all, delete-orphan",
     )
 
+    @property
+    def questions_count(self) -> int | None:
+        return (
+            len(self.assessment_questions)
+            if len(self.assessment_questions) > 0
+            else None
+        )
+
     def __repr__(self):
         return f"<Article(id={self.id}, title={self.title}, author={self.author}, created_at={self.created_at})>"
 

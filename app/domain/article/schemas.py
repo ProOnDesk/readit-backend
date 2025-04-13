@@ -85,6 +85,7 @@ class ResponseArticle(BaseArticle):
     title_image_url: str
     rating: float
     rating_count: int
+    questions_count: int | None
 
 class ResponseArticleWishList(ResponseArticle):
     is_bought: bool | None = None
