@@ -76,6 +76,8 @@ def seed_data(
                     content = fake.sentence()
                 elif content_type == "text":
                     content = fake.text(max_nb_chars=750)
+                elif content_type == "listing":
+                    content = fake.text(max_nb_chars=200)
                     
                 article_content_element = ArticleContentElement(
                     content_type= content_type,
