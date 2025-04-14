@@ -1414,22 +1414,6 @@ def get_collection_detail_by_id(collection_id: int, db: Annotated[Session, Depen
             detail="Nie znaleziono paczki."
         )
         
-    if access_token:
-        user_id = get_user_id_by_access_token(access_token)
-        
-        for article in db_collection.articles:
-            article.is_bought = service.has_user_purchased_article(db=db, user_id=user_id, article_id=article.id)
-            
-            total_price = 0
-        
-            if not service.has_user_purchased_article(db=db, user_id=user_id, article_id=article.id):
-                total_price += article.price
-                
-            discount = (db_collection.discount_percentage / 100) * total_price
-            
-            new_price = total_price - discount
-        
-        db_collection.price = new_price
             
     return db_collection
 
