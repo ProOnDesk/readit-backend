@@ -136,6 +136,7 @@ class Collection(BaseModel):
     articles_count: int
     rating: float = 0.0
     articles_id: List[int]
+    is_bought: bool | None = None
     
 class CollectionDetail(Collection):
     articles: List[ResponseArticleWishList]

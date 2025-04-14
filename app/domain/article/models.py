@@ -326,6 +326,7 @@ class Collection(Base):
         "Article", secondary="collection_articles", back_populates="collections"
     )
     _price = None
+    _is_bought = None
 
     @property
     def articles_id(self) -> list[int]:
@@ -358,6 +359,16 @@ class Collection(Base):
     @property
     def collection_image_url(self):
         return IP_ADDRESS + self.collection_image
+
+    @property
+    def is_bought(self) -> bool:
+        if self._is_bought is None:
+            raise ValueError("The '_is_bought' attribute is not set.")
+        return self._is_bought
+
+    @is_bought.setter
+    def is_bought(self, value: bool):
+        self._is_bought = value
 
 
 class CollectionArticle(Base):

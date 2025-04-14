@@ -305,7 +305,6 @@ def has_user_purchased_article(db: Session, user_id: int, article_id: int) -> bo
         is not None
     )
 
-
 def is_user_author_of_article(db: Session, user_id: int, article_id: int) -> bool:
     return (
         db.query(models.Article).filter_by(id=article_id, author_id=user_id).first()
