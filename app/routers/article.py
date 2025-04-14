@@ -1367,7 +1367,9 @@ def get_collections_by_user_id(user_id: int, db: Annotated[Session, Depends(get_
             for article in db_collection.articles:
                 
                 if service.has_user_purchased_article(db=db, user_id=user_id, article_id=article.id) is True:
-                    db_collection.price = db_collection.price - article.price * (db_collection.discount_percentage / 100)
+                    db_collection.price = db_collection.price - article.price * (1 - (db_collection.discount_percentage / 100))    
+                            
+            db_collection.price = round(db_collection.price, 2)
             
     return paginate(db_collections)
 
@@ -1380,9 +1382,11 @@ def get_collections_by_article_id(article_id: int, db: Annotated[Session, Depend
 
         for db_collection in db_collections:
             for article in db_collection.articles:
-                if service.has_user_purchased_article(db=db, user_id=user_id, article_id=article.id) is True:
                 
-                    db_collection.price = db_collection.price - article.price * (db_collection.discount_percentage / 100)
+                if service.has_user_purchased_article(db=db, user_id=user_id, article_id=article.id) is True:
+                    db_collection.price = db_collection.price - article.price * (1 - (db_collection.discount_percentage / 100))    
+                                    
+            db_collection.price = round(db_collection.price, 2)
                 
     return paginate(db_collections)
 
@@ -1439,7 +1443,10 @@ def get_collection_detail_by_id(collection_id: int, db: Annotated[Session, Depen
             
             if article.is_bought is True:
                 db_collection.price = db_collection.price - article.price * (1 - (db_collection.discount_percentage / 100))
-            
+        
+        
+        db_collection.price = round(db_collection.price, 2)
+
     return db_collection
 
 @router.patch(
