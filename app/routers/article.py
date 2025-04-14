@@ -1407,13 +1407,20 @@ def get_collections_by_article_id(article_id: int, authenticated_user_id: Annota
 @router.get('/collection/detail/{collection_id}')
 def get_collection_detail_by_id(collection_id: int, db: Annotated[Session, Depends(get_db)], access_token: Union[str, None] = Cookie(None)) -> schemas.CollectionDetail:
     db_collection = service.get_collection_by_id(db=db, collection_id=collection_id)
-    
     if not db_collection:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Nie znaleziono paczki."
         )
         
+    if access_token:
+        user_id = get_user_id_by_access_token(access_token)
+        
+        for article in db_collection.articles:
+            article.is_bought = service.has_user_purchased_article(db=db, user_id=user_id, article_id=article.id)
+            
+            if article.is_bought is True:
+                db_collection.price = db_collection.price - article.price * (db_collection.discount_percentage / 100)
             
     return db_collection
 
