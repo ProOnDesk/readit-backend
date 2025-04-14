@@ -362,9 +362,8 @@ class Collection(Base):
 
     @property
     def is_bought(self) -> bool:
-        if self._is_bought is None:
-            raise ValueError("The '_is_bought' attribute is not set.")
-        return self._is_bought
+        if self._is_bought is not None:
+            return self._is_bought
 
     @is_bought.setter
     def is_bought(self, value: bool):
