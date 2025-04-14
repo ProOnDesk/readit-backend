@@ -1357,18 +1357,36 @@ def get_collections_for_me(user_id: Annotated[int, Depends(authenticate)], db: A
     return paginate(db_collections)
 
 @router.get('/collections/user/{user_id}', status_code=status.HTTP_200_OK)
-def get_collections_by_user_id(user_id: int, db: Annotated[Session, Depends(get_db)]) -> Page[schemas.Collection]:
+def get_collections_by_user_id(user_id: int, db: Annotated[Session, Depends(get_db)], access_token: Union[str, None] = Cookie(None)) -> Page[schemas.Collection]:
     db_collections = service.get_collections_by_user_id(db=db, user_id=user_id)
     
+    if access_token:
+        user_id = get_user_id_by_access_token(access_token)
+        
+        for db_collection in db_collections:
+            for article in db_collection.articles:
+                
+                if service.has_user_purchased_article(db=db, user_id=user_id, article_id=article.id) is True:
+                    db_collection.price = db_collection.price - article.price * (db_collection.discount_percentage / 100)
+            
     return paginate(db_collections)
 
 @router.get('/collections/article/{article_id}', status_code=status.HTTP_200_OK)
-def get_collections_by_article_id(article_id: int, db: Annotated[Session, Depends(get_db)]) -> Page[schemas.Collection]:
+def get_collections_by_article_id(article_id: int, db: Annotated[Session, Depends(get_db)], access_token: Union[str, None] = Cookie(None)) -> Page[schemas.Collection]:
     db_collections = service.get_collections_by_article_id(db=db, article_id=article_id)
     
+    if access_token:
+        user_id = get_user_id_by_access_token(access_token)
+
+        for db_collection in db_collections:
+            for article in db_collection.articles:
+                if service.has_user_purchased_article(db=db, user_id=user_id, article_id=article.id) is True:
+                
+                    db_collection.price = db_collection.price - article.price * (db_collection.discount_percentage / 100)
+                
     return paginate(db_collections)
 
-@router.get('/collections/user/logged/{user_id}', status_code=status.HTTP_200_OK)
+@router.get('/collections/user/logged/{user_id}', status_code=status.HTTP_200_OK, deprecated=True)
 def get_collections_by_user_id(user_id: int, authenticated_user_id: Annotated[int, Depends(authenticate)], db: Annotated[Session, Depends(get_db)]) -> Page[schemas.Collection]:
     db_collections = service.get_collections_by_user_id(db=db, user_id=user_id)
     
@@ -1386,7 +1404,7 @@ def get_collections_by_user_id(user_id: int, authenticated_user_id: Annotated[in
     
     return paginate(db_collections)
 
-@router.get('/collections/article/logged/{article_id}', status_code=status.HTTP_200_OK)
+@router.get('/collections/article/logged/{article_id}', status_code=status.HTTP_200_OK, deprecated=True)
 def get_collections_by_article_id(article_id: int, authenticated_user_id: Annotated[int, Depends(authenticate)], db: Annotated[Session, Depends(get_db)]) -> Page[schemas.Collection]:
     db_collections = service.get_collections_by_article_id(db=db, article_id=article_id)
     
@@ -1420,7 +1438,7 @@ def get_collection_detail_by_id(collection_id: int, db: Annotated[Session, Depen
             article.is_bought = service.has_user_purchased_article(db=db, user_id=user_id, article_id=article.id)
             
             if article.is_bought is True:
-                db_collection.price = db_collection.price - article.price * (db_collection.discount_percentage / 100)
+                db_collection.price = db_collection.price - article.price * (1 - (db_collection.discount_percentage / 100))
             
     return db_collection
 
