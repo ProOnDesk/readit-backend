@@ -47,9 +47,10 @@ class User(Base):
          
     @property
     def avg_rating_from_articles(self):
-        sum_rating = sum(article.rating for article in self.articles if article.rating is not None)
-        count = sum(1 for article in self.articles if article.rating is not None)
-        return round(sum_rating / count if count > 0 else 0.0, 2)
+        articles = [article.rating for article in self.articles if article.rating != 0]
+        sum_rating = sum(articles)
+        counter = len(articles)
+        return round(sum_rating / counter, 2) if counter > 0 else 0.0
 
     @property
     def avatar_url(self):
