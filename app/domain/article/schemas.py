@@ -43,7 +43,7 @@ class BaseArticle(BaseModel):
     tags: Optional[List[BaseTag]] = None
     is_free: bool = True
     price: float = 0.0
-    
+
 class CreateArticle(BaseArticle):
     content_elements: List[BaseArticleContentElement]
     assessment_questions: List[ArticleAssessmentQuestion]
@@ -114,13 +114,13 @@ class Slug(BaseModel):
 class CreateCollection(BaseModel):
     title: str
     discount_percentage: Annotated[int , Field(le=100, ge=0)]
-    articles_id: conset(int, min_length=2)
+    articles_id: conset(int, min_length=2) # type: ignore
     short_description: Annotated[str, Field(max_length=500)]
     
 class UpdateCollection(BaseModel):
     title: Union[None, str] = None
     discount_percentage: Union[None, Annotated[int , Field(le=100, ge=0)]] = None
-    articles_id: Union[None, conset(int, min_length=2)] = None
+    articles_id: Union[None, conset(int, min_length=2)] = None # type: ignore
     short_description: Union[None, Annotated[str, Field(max_length=500)]] = None
     
 class Collection(BaseModel):

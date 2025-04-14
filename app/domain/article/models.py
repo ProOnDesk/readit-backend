@@ -115,7 +115,7 @@ class Article(Base):
         back_populates="article",
         cascade="all, delete-orphan",
     )
-
+    transaction_items = relationship("TransactionItem", back_populates="article", cascade="all, delete-orphan")
     @property
     def questions_count(self) -> int | None:
         return (

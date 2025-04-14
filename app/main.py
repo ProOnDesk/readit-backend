@@ -8,7 +8,7 @@ from pydantic import BaseModel
 from app.database import engine, SessionLocal
 from app.config import CORS_ORIGINS, SECRET_KEY, ENCRYPTION_ALGORITHM, IS_PRODUCTION
 from app.domain.model_base import Base
-from app.routers import oauth2, user, article, develop, router, support
+from app.routers import oauth2, user, article, develop, router, support, transactions
 from app.internal.admin import create_admin
 from fastapi_pagination import add_pagination
 from fastapi_pagination.utils import disable_installed_extensions_check
@@ -18,6 +18,9 @@ from alembic.config import Config as AlembicConfig
 from alembic import command
 import logging
 import os
+from sqlalchemy.orm import configure_mappers
+configure_mappers()
+
 
 class AddXFrameOptionsMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request, call_next):
@@ -140,6 +143,7 @@ def get_application() -> FastAPI:
     disable_installed_extensions_check()
 
     fapp.include_router(router)
+    fapp.include_router(transactions.router)
     fapp.include_router(oauth2.router)
     fapp.include_router(user.router)
     fapp.include_router(article.router)

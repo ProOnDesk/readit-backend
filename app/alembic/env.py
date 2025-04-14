@@ -1,6 +1,6 @@
 from logging.config import fileConfig
 import alembic.operations
-from sqlalchemy import engine_from_config, pool, text
+from sqlalchemy import engine_from_config, pool, text, sql
 from alembic import context
 from app.domain.model_base import Base
 from alembic.operations.ops import DropColumnOp, AddColumnOp, ModifyTableOps, ExecuteSQLOp
@@ -63,6 +63,8 @@ def process_revision_directives(context, revision, directives):
                         column_default = 0
                     if str(column.type) in ["BOOLEAN"]:
                         column_default = False
+                    if str(column.type) in ["DATETIME"]:
+                        column_default = sql.func.now()
 
                     op_list.ops.insert(
                         i,
